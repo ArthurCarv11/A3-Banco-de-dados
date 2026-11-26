@@ -1,0 +1,142 @@
+/*
+  UNIFACS — Projeto Integrador de Banco de Dados — A3
+  Time Índice — Grupo 4 | Cenário: USUPORT
+  DER conceitual em notação de Chen (Graphviz, motor neato).
+  Renderizar:  neato -Tpng -Gdpi=200 der_conceitual.dot -o der_conceitual.png
+  (ou: python scripts/gerar_diagramas.py)
+  Coordenadas em polegadas; "!" fixa a posição. Atributos simples sem "!"
+  são acomodados pelo neato perto da entidade dona.
+*/
+graph DER_conceitual {
+  graph [layout=neato, overlap=false, splines=true, sep="+10", esep="+4",
+         forcelabels=true, fontname="DejaVu Sans", fontsize=22, labelloc=t, pad=0.4,
+         label=<<B>USUPORT — DER conceitual (notação de Chen)</B><BR/><FONT POINT-SIZE="13">Time Índice — Grupo 4 · sinistros em rodovias federais (PRF 2024)</FONT>>];
+  node  [fontname="DejaVu Sans", fontsize=12];
+  edge  [fontname="DejaVu Sans", fontsize=13, fontcolor="#b23b0e", len=1.3];
+
+  /* ================= Entidades ================= */
+  node [shape=box, style="filled,rounded", fillcolor="#dbe8f8", color="#2a78d6", penwidth=2, fontsize=14];
+  ACIDENTE [label=<<B>ACIDENTE</B>>,          pos="0,0!"];
+  VEICULO  [label=<<B>VEÍCULO</B>>,           pos="6.6,2.8!"];
+  PESSOA   [label=<<B>PESSOA</B>>,            pos="6.6,-3.2!"];
+  UOP      [label=<<B>UOP</B>>,               pos="-3.4,-5.2!"];
+  DELEG    [label=<<B>DELEGACIA</B>>,         pos="-7.4,-5.2!"];
+  SUPER    [label=<<B>SUPERINTENDÊNCIA</B>>,  pos="-11.6,-5.2!"];
+
+  /* ================= Relacionamentos ================= */
+  node [shape=diamond, style=filled, fillcolor="#fde3d6", color="#eb6834", penwidth=1.5, fontsize=12];
+  r_env_v  [label="envolve",   pos="3.3,1.4!"];
+  r_env_p  [label="envolve",   pos="3.3,-1.6!"];
+  r_ocupa  [label="ocupa",     pos="6.6,-0.2!"];
+  r_at_u   [label="atende",    pos="-2.4,-3.0!"];
+  r_at_d   [label="atende",    pos="-4.7,-3.0!"];
+  r_at_s   [label="atende",    pos="-7.4,-2.6!"];
+  r_sub_ud [label="subordina", pos="-5.4,-6.3!"];
+  r_sub_ds [label="subordina", pos="-9.5,-6.3!"];
+
+  /* ================= Atributos ================= */
+  node [shape=ellipse, style=filled, fillcolor="white", color="#52514e", penwidth=1, fontsize=11];
+
+  /* ACIDENTE — simples (posição inicial; o neato ajusta) */
+  a_id    [label=<<U>id</U>>,          pos="0.5,1.9!"];
+  a_data  [label="data",               pos="-0.7,1.9!"];
+  a_hora  [label="horário",            pos="-1.6,1.3!"];
+  a_fase  [label="fase do dia",        pos="1.5,1.2!"];
+  a_pista [label="tipo de pista",      pos="1.7,-1.5!"];
+  a_solo  [label="uso do solo",        pos="-0.2,-1.9!"];
+  a_class [label="classificação",      pos="-1.4,-1.8!"];
+  a_cond  [label="condição\nmeteorológica", pos="1.2,-2.6!"];
+  /* derivados (tracejados): NÃO são armazenados */
+  a_dia   [label="dia da semana",      style="filled,dashed", pos="-0.4,3.0!"];
+  a_vit   [label="totais de vítimas\n(ilesos, feridos, mortos)", style="filled,dashed", pos="0.2,-3.7!"];
+
+  /* atributo COMPOSTO: local */
+  a_local [label="local", penwidth=2.2, pos="1.9,3.4!"];
+  a_br    [label="BR",        pos="0.5,4.5!"];
+  a_km    [label="km",        pos="1.5,4.8!"];
+  a_sent  [label="sentido",   pos="2.7,4.8!"];
+  a_mun   [label="município", pos="3.8,4.3!"];
+  a_uf    [label="UF",        pos="3.9,3.5!"];
+  /* atributo COMPOSTO: coordenadas */
+  a_coord [label="coordenadas", penwidth=2.2, pos="-2.8,3.2!"];
+  a_lat   [label="latitude",  pos="-4.1,4.0!"];
+  a_lon   [label="longitude", pos="-2.4,4.3!"];
+
+  /* atributos MULTIVALORADOS (elipse dupla) */
+  node [peripheries=2, fillcolor="#e6f5ee", color="#1baf7a"];
+  a_causas  [label="causas",             pos="3.5,-0.1!"];
+  a_tracado [label="traçado da via",     pos="-3.4,1.9!"];
+  a_tipos   [label="tipos\n(sequência)", pos="-4.0,0.3!"];
+  node [peripheries=1, fillcolor="white", color="#52514e"];
+  a_c_desc  [label="descrição",          pos="4.6,0.8!"];
+  a_c_princ [label="principal?",         pos="4.7,-0.9!"];
+  a_t_ord   [label="ordem",              pos="-5.7,0.9!"];
+  a_t_tipo  [label="tipo",               pos="-5.7,-0.2!"];
+
+  /* PESSOA */
+  p_id    [label=<<U>pesid</U>>,      pos="8.7,-2.4!"];
+  p_env   [label="tipo de envolvido", pos="9.0,-3.4!"];
+  p_est   [label="estado físico",     pos="8.6,-4.4!"];
+  p_idade [label="idade",             pos="7.0,-4.8!"];
+  p_sexo  [label="sexo",              pos="5.5,-4.6!"];
+
+  /* VEÍCULO */
+  v_id    [label=<<U>id_veiculo</U>>,  pos="8.7,3.6!"];
+  v_tipo  [label="tipo de veículo",    pos="9.0,2.5!"];
+  v_marca [label="marca/modelo",       pos="8.3,1.5!"];
+  v_ano   [label="ano de fabricação",  pos="6.6,4.2!"];
+
+  /* Unidades da PRF */
+  u_sigla [label=<<U>sigla</U>>, pos="-2.0,-6.1!"];
+  d_sigla [label=<<U>sigla</U>>, pos="-7.4,-6.6!"];
+  s_sigla [label=<<U>sigla</U>>, pos="-12.8,-6.3!"];
+
+  /* ================= Entidade — atributo ================= */
+  edge [color="#8a8984", penwidth=1];
+  ACIDENTE -- {a_id a_data a_hora a_pista a_solo a_class a_cond a_fase a_local a_coord a_causas a_tipos a_tracado};
+  ACIDENTE -- {a_dia a_vit} [style=dashed];
+  a_local  -- {a_br a_km a_sent a_mun a_uf};
+  a_coord  -- {a_lat a_lon};
+  a_causas -- {a_c_desc a_c_princ};
+  a_tipos  -- {a_t_ord a_t_tipo};
+  PESSOA   -- {p_id p_env p_est p_idade p_sexo};
+  VEICULO  -- {v_id v_tipo v_marca v_ano};
+  UOP -- u_sigla;  DELEG -- d_sigla;  SUPER -- s_sigla;
+
+  /* ================= Relacionamentos e cardinalidades =================
+     linha dupla = participação total (obrigatória)                      */
+  edge [color="#1f1f1f", penwidth=1.4];
+  ACIDENTE -- r_env_p  [xlabel="1",          color="#1f1f1f:white:#1f1f1f"];
+  r_env_p  -- PESSOA   [xlabel="N (1..93)",  color="#1f1f1f:white:#1f1f1f"];
+  ACIDENTE -- r_env_v  [xlabel="1"];
+  r_env_v  -- VEICULO  [xlabel="N (0..26)",  color="#1f1f1f:white:#1f1f1f"];
+  VEICULO  -- r_ocupa  [xlabel="0..1"];
+  r_ocupa  -- PESSOA   [xlabel="N (0..79)"];
+  UOP      -- r_at_u   [xlabel="0..1"];
+  r_at_u   -- ACIDENTE [xlabel="N"];
+  DELEG    -- r_at_d   [xlabel="0..1"];
+  r_at_d   -- ACIDENTE [xlabel="N"];
+  SUPER    -- r_at_s   [xlabel="0..1"];
+  r_at_s   -- ACIDENTE [xlabel="N"];
+  DELEG    -- r_sub_ud [xlabel="1"];
+  r_sub_ud -- UOP      [xlabel="N", color="#1f1f1f:white:#1f1f1f"];
+  SUPER    -- r_sub_ds [xlabel="1"];
+  r_sub_ds -- DELEG    [xlabel="N", color="#1f1f1f:white:#1f1f1f"];
+
+  /* ================= Notas ================= */
+  nota_arco [shape=note, style=filled, fillcolor="#fff6dc", color="#c98500", fontsize=11, pos="-11.0,-1.6!",
+             label="ARCO EXCLUSIVO — os três 'atende'\nEm cada acidente vale no máximo UM:\na unidade mais específica conhecida\n(UOP › delegacia › superintendência).\nNo CSV: 73.044 / 76 / 33 / 3 sem unidade."];
+
+  legenda [shape=plain, fontsize=11, pos="11.2,-6.2!", label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="2" CELLPADDING="3" COLOR="#8a8984">
+      <TR><TD COLSPAN="2"><B>Legenda</B></TD></TR>
+      <TR><TD ALIGN="LEFT">retângulo</TD><TD ALIGN="LEFT">entidade</TD></TR>
+      <TR><TD ALIGN="LEFT">losango</TD><TD ALIGN="LEFT">relacionamento</TD></TR>
+      <TR><TD ALIGN="LEFT"><U>sublinhado</U></TD><TD ALIGN="LEFT">atributo-chave</TD></TR>
+      <TR><TD ALIGN="LEFT">elipse dupla (verde)</TD><TD ALIGN="LEFT">multivalorado</TD></TR>
+      <TR><TD ALIGN="LEFT">elipse com sub-elipses</TD><TD ALIGN="LEFT">composto</TD></TR>
+      <TR><TD ALIGN="LEFT">elipse tracejada</TD><TD ALIGN="LEFT">derivado (não armazenado)</TD></TR>
+      <TR><TD ALIGN="LEFT">linha dupla</TD><TD ALIGN="LEFT">participação total</TD></TR>
+      <TR><TD ALIGN="LEFT">1, N, 0..1</TD><TD ALIGN="LEFT">cardinalidade (entre parênteses:<BR ALIGN="LEFT"/>mín..máx observado no CSV)</TD></TR>
+    </TABLE>>];
+}
