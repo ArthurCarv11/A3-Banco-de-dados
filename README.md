@@ -8,7 +8,7 @@ Professores: Sergio Spinola e Alexandre Anunciação
 | Filipe Albuquerque Oliveira | 12725146899 |
 | Guilherme Cabral Teixeira | 12725188306 |
 | Arthur Cordeiro de Carvalho Cruz | 12725113247 |
-| Miguel Lima Quadros Gomes | 1272514349 [CONFERIR] |
+| Miguel Lima Quadros Gomes | 1272514349 |
 | Alisson Sousa Santos | 12725158318 |
 | Cláudio Roberto Cruz Santiago Santos | 12725151039 |
 
