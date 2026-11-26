@@ -36,7 +36,7 @@ Com os dados assim, perguntas simples, como "quais causas mais matam?" ou "em qu
 
 ![Modelo lógico](docs/der_logico.png)
 
-As fontes editáveis dos diagramas estão em `docs/der_conceitual.dot` e `docs/der_logico.dot`. Os campos, tipos e restrições de cada tabela estão em `docs/dicionario_dados.md`.
+O dicionário de dados (campos, tipos, restrições e finalidade de cada tabela) está no relatório, `docs/relatorio.pdf`.
 
 ## Tecnologias e por que foram escolhidas
 
@@ -59,7 +59,7 @@ As fontes editáveis dos diagramas estão em `docs/der_conceitual.dot` e `docs/d
   - a pessoa guarda o acidente e o veículo, com uma FK composta que impede divergência;
   - a classificação do acidente é mantida e conferida contra o estado físico das pessoas.
 
-  O passo a passo está em `docs/memorial_normalizacao.md`.
+  O passo a passo está no relatório (`docs/relatorio.pdf`), seção 5.
 
 ## Testes e validação
 
@@ -76,7 +76,7 @@ As fontes editáveis dos diagramas estão em `docs/der_conceitual.dot` e `docs/d
 ├── requirements.txt             ← dependências do app (streamlit, mysql-connector-python, pandas, altair)
 ├── .env.example                 ← modelo de configuração da conexão (copie para .env)
 ├── sql/
-│   ├── 00_completo.sql          ← pacote ÚNICO (01..07 concatenados) — gerado por scripts/montar_sql_completo.py
+│   ├── 00_completo.sql          ← pacote ÚNICO (01..07 concatenados)
 │   ├── 01_ddl.sql               ← CREATE DATABASE, DROP/CREATE das 16 tabelas, PK/FK/UNIQUE/CHECK, índices, ALTER TABLE
 │   ├── 02_staging.sql           ← staging + LOAD DATA LOCAL INFILE (latin1)
 │   ├── 03_carga.sql             ← INSERT…SELECT da staging para as 16 tabelas + regras de limpeza R0–R11
@@ -89,28 +89,11 @@ As fontes editáveis dos diagramas estão em `docs/der_conceitual.dot` e `docs/d
 │   ├── db.py                    ← TODO o SQL da aplicação (camada de acesso ao banco)
 │   ├── componentes.py           ← expander "SQL executado", mensagens de erro
 │   └── paginas/                 ← consulta.py · insercao.py · exclusao.py · painel.py
-├── scripts/
-│   ├── carregar_staging.py      ← alternativa ao LOAD DATA (carga da staging em Python)
-│   ├── montar_sql_completo.py   ← gera sql/00_completo.sql
-│   ├── gerar_dicionario.py      ← gera docs/dicionario_dados.md do INFORMATION_SCHEMA
-│   ├── gerar_diagramas.py       ← gera docs/der_conceitual.png e docs/der_logico.png (Graphviz)
-│   ├── capturar_telas.py        ← capturas do app para o relatório (Playwright + Edge)
-│   ├── gerar_relatorio.py       ← docs/relatorio.md → docs/relatorio.pdf
-│   └── empacotar_entrega.py     ← gera o .zip de entrega
 ├── docs/
 │   ├── relatorio.pdf            ← RELATÓRIO TÉCNICO (entrega)
-│   ├── versao2.md               ← projeto da versão 2: as 5 partes, riscos, testes e medições
-│   ├── relatorio.md             ← fonte do relatório
-│   ├── der_conceitual.png/.dot  ← DER conceitual (Chen) em alta resolução
-│   ├── der_logico.png/.dot      ← modelo lógico (tabelas, PK/FK)
-│   ├── requisitos_regras.md     ← requisitos funcionais/não funcionais e regras de negócio
-│   ├── memorial_normalizacao.md ← 0FN → 1FN → 2FN → 3FN com exemplos reais
-│   ├── dicionario_dados.md      ← tabelas, campos, tipos, restrições e finalidades
-│   ├── infra_vm.md              ← VirtualBox + Ubuntu + MySQL 8 + DBeaver
-│   ├── roteiro_apresentacao.md  ← roteiro de 15–20 min com as falas de cada integrante
-│   ├── guia_arguicao.md         ← perguntas prováveis da banca e respostas
-│   └── img/                     ← capturas de tela do app
-├── certificados/README.md       ← status dos certificados Oracle Academy
+│   ├── der_conceitual.png       ← DER conceitual (Chen) em alta resolução
+│   └── der_logico.png           ← modelo lógico (tabelas, PK/FK)
+├── certificados/                ← certificados Oracle Academy
 └── dados/                       ← CSV da PRF compactado (.csv.gz) + README
 ```
 
@@ -118,7 +101,7 @@ As fontes editáveis dos diagramas estão em `docs/der_conceitual.dot` e `docs/d
 
 ### 1. Banco de dados (na VM Ubuntu com MySQL 8)
 
-Configuração da VM, rede, usuários e DBeaver: **`docs/infra_vm.md`**.
+Configuração da VM, rede, usuários e DBeaver: seção 8 do relatório (`docs/relatorio.pdf`).
 
 O CSV da PRF está no repositório compactado: `dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz`, com 13 MB (o original tem 222 MB e passa do limite de 100 MB do GitHub). Descompacte e carregue **a partir da raiz do projeto**:
 
@@ -131,7 +114,7 @@ gunzip -k dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz
 sudo mysql --local-infile=1 --default-character-set=utf8mb4 < sql/00_completo.sql
 ```
 
-Em cerca de 1 a 2 minutos o banco `usuport` está criado, carregado e validado, com todas as linhas da validação `OK`; no ambiente de teste levou uns 40 s. Para executar por etapas, rode os scripts de `sql/` na ordem numérica. Se o `LOAD DATA` não for permitido, use `python scripts/carregar_staging.py` no lugar do `02`.
+Em cerca de 1 a 2 minutos o banco `usuport` está criado, carregado e validado, com todas as linhas da validação `OK`; no ambiente de teste levou uns 40 s. Para executar por etapas, rode os scripts de `sql/` na ordem numérica.
 
 ### 2. Aplicação (no computador)
 
@@ -148,18 +131,6 @@ streamlit run app/app.py
 ```
 
 O app abre em `http://localhost:8501`. A barra lateral mostra a versão do MySQL e o hostname do servidor conectado.
-
-### 3. Regenerar a documentação (opcional)
-
-Os scripts abaixo precisam do banco carregado e do `.env` configurado. O de diagramas usa o Graphviz local ou o Docker; o do relatório usa o Microsoft Edge para gerar o PDF.
-
-```bash
-python scripts/gerar_dicionario.py
-python scripts/gerar_diagramas.py
-python scripts/montar_sql_completo.py
-python scripts/gerar_relatorio.py
-python scripts/empacotar_entrega.py
-```
 
 ## Resultados da carga (validados)
 

@@ -4,3 +4,9 @@ __pycache__/
 *.pyc
 entrega/
 .claude/
+
+# Fora do repositório (não obrigatório pelo barema/edital; ficam só no computador)
+scripts/
+docs/*.md
+docs/*.dot
+docs/img/
