@@ -1,6 +1,6 @@
 # Dados
 
-O arquivo da PRF entregue pelo professor para o cenário USUPORT está aqui **compactado**:
+O arquivo da PRF entregue à equipe para o cenário USUPORT está aqui **compactado**:
 
 ```
 dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz

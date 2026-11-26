@@ -16,7 +16,7 @@ Professores: Sergio Spinola e Alexandre Anunciação
 
 ## O problema
 
-A Polícia Rodoviária Federal (PRF) publica os sinistros das rodovias federais numa planilha. A de 2024 é a base do cenário **USUPORT**, nome atribuído pelo professor ao cenário do grupo. Ela tem **603.215 linhas para só 73.156 acidentes**, porque cada linha repete o acidente inteiro para cada combinação de pessoa, causa e tipo de evento. O acidente do ônibus em Teófilo Otoni (MG), em 21/12/2024, com 53 pessoas e 37 mortes, ocupa sozinho **1.540 linhas**.
+A Polícia Rodoviária Federal (PRF) publica os sinistros das rodovias federais numa planilha. A de 2024 é a base entregue à equipe no cenário **USUPORT**. Ela tem **603.215 linhas para só 73.156 acidentes**, porque cada linha repete o acidente inteiro para cada combinação de pessoa, causa e tipo de evento. O acidente do ônibus em Teófilo Otoni (MG), em 21/12/2024, com 53 pessoas e 37 mortes, ocupa sozinho **1.540 linhas**.
 
 Com os dados assim, perguntas simples, como "quais causas mais matam?" ou "em quais trechos?", exigem limpar e deduplicar a planilha toda vez. Uma correção também precisa ser repetida em centenas de linhas, e o mesmo acidente pode acabar com dois valores diferentes. São dados de segurança viária, com **6.160 mortes registradas em 2024**, usados para orientar fiscalização, campanhas e a gestão das unidades da PRF.
 
