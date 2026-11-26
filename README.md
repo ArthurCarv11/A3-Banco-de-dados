@@ -1,16 +1,6 @@
 # Time Índice — Grupo 4 — Cenário USUPORT
 
-**UNIFACS — Campus CTN, Salvador** · UC Projeto Integrador de Banco de Dados — Avaliação A3
-Professores: Sergio Spinola e Alexandre Anunciação
-
-| Integrante | RA |
-|---|---|
-| Filipe Albuquerque Oliveira | 12725146899 |
-| Guilherme Cabral Teixeira | 12725188306 |
-| Arthur Cordeiro de Carvalho Cruz | 12725113247 |
-| Miguel Lima Quadros Gomes | 1272514349 |
-| Alisson Sousa Santos | 12725158318 |
-| Cláudio Roberto Cruz Santiago Santos | 12725151039 |
+Avaliação A3
 
 **Sistema de gestão e análise de sinistros em rodovias federais.** A planilha da PRF de 2024 (603.215 linhas redundantes) vira um banco MySQL 8 normalizado até a 3FN, com **16 tabelas** e **5 views**. O banco roda numa VM do VirtualBox, é inspecionado pelo DBeaver e é manipulado por um app CRUD em Python + Streamlit com SQL puro e parametrizado.
 
