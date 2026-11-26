@@ -5,10 +5,10 @@
 -- -----------------------------------------------------------------------------
 --  Cada verificação devolve: o que foi medido, o valor ESPERADO (vindo do
 --  perfilamento do CSV), o valor OBTIDO no banco e a situação (OK/DIVERGENTE).
---    A. Contagens das 16 tabelas
+--    A. Contagens das 14 tabelas
 --    B. Regras de limpeza: quantos registros cada regra afetou
 --    C. Regras de negócio (violações devem ser 0)
---    D. Remoção da staging (o esquema final fica só com as 16 tabelas)
+--    D. Remoção da staging (o esquema final fica só com as 14 tabelas)
 --  Rode logo após o 03_carga.sql (a seção B lê a staging).
 -- =============================================================================
 
@@ -31,8 +31,11 @@ SELECT t.verificacao, t.esperado, t.obtido,
     UNION ALL SELECT 'A09 delegacias',                  152, (SELECT COUNT(*) FROM delegacia)
     UNION ALL SELECT 'A10 UOPs',                        394, (SELECT COUNT(*) FROM uop)
     UNION ALL SELECT 'A11 cidades (nome, uf)',         1873, (SELECT COUNT(*) FROM cidade)
-    UNION ALL SELECT 'A12 condicoes meteorologicas',     10, (SELECT COUNT(*) FROM condicao_meteorologica)
-    UNION ALL SELECT 'A13 fases do dia',                  4, (SELECT COUNT(*) FROM fase_dia)
+    -- v2: condição e fase do dia viraram coluna com CHECK → conta valores distintos
+    UNION ALL SELECT 'A12 condicoes meteorologicas (distintas)', 10,
+           (SELECT COUNT(DISTINCT condicao_meteorologica) FROM acidente)
+    UNION ALL SELECT 'A13 fases do dia (distintas)',              4,
+           (SELECT COUNT(DISTINCT fase_dia) FROM acidente)
     UNION ALL SELECT 'A14 pares acidente-causa',     111307, (SELECT COUNT(*) FROM causa_acidente)
     UNION ALL SELECT 'A15 pares acidente-ordem-tipo',124173, (SELECT COUNT(*) FROM acidente_tipo)
     UNION ALL SELECT 'A16 pares acidente-tracado',    93850, (SELECT COUNT(*) FROM acidente_tracado)
@@ -110,6 +113,12 @@ SELECT t.verificacao, t.esperado, t.obtido,
            (SELECT SUM(m) FROM (SELECT pesid, MAX(CAST(feridos_graves AS UNSIGNED)) m
                                   FROM stg_acidente_csv WHERE pesid <> 'NA' GROUP BY pesid) x),
            (SELECT COUNT(*) FROM pessoa WHERE estado_fisico = 'Lesões Graves')
+    -- R12: nenhuma fase do dia com a grafia antiga (comparação COM caixa)
+    UNION ALL SELECT 'B-R12 fase do dia com grafia antiga "Pleno dia"', 0,
+           (SELECT COUNT(*) FROM acidente WHERE fase_dia COLLATE utf8mb4_0900_as_cs = 'Pleno dia')
+    UNION ALL SELECT 'B-R12 acidentes de "Pleno Dia" (padronizados)',
+           (SELECT COUNT(DISTINCT id) FROM stg_acidente_csv WHERE fase_dia = 'Pleno dia'),
+           (SELECT COUNT(*) FROM acidente WHERE fase_dia COLLATE utf8mb4_0900_as_cs = 'Pleno Dia')
   ) AS t;
 
 -- -----------------------------------------------------------------------------
@@ -192,7 +201,7 @@ SELECT CASE WHEN id_uop IS NOT NULL              THEN '1. UOP'
  ORDER BY unidade_registrada;
 
 -- -----------------------------------------------------------------------------
--- D. Remoção da staging — o esquema final fica com as 16 tabelas do modelo.
+-- D. Remoção da staging — o esquema final fica com as 14 tabelas do modelo.
 --    (comente a linha abaixo se quiser manter a staging para inspeção)
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS stg_acidente_csv;

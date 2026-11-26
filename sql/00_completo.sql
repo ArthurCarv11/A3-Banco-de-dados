@@ -26,9 +26,9 @@
 -- -----------------------------------------------------------------------------
 --  O que este script faz, em ordem:
 --    1. CREATE DATABASE usuport (utf8mb4, colação sem acento/sem caixa);
---    2. DROP TABLE IF EXISTS das 16 tabelas, na ordem INVERSA das FKs
+--    2. DROP TABLE IF EXISTS das tabelas, na ordem INVERSA das FKs
 --       (primeiro quem referencia, depois quem é referenciado);
---    3. CREATE TABLE das 16 tabelas, na ordem DIRETA das FKs
+--    3. CREATE TABLE das 14 tabelas, na ordem DIRETA das FKs
 --       (primeiro os catálogos e a hierarquia da PRF, depois acidente,
 --        depois as tabelas que dependem de acidente);
 --    4. ALTER TABLE comentados, com restrições que só podem ser criadas
@@ -64,6 +64,8 @@ DROP TABLE IF EXISTS tipo_veiculo;
 DROP TABLE IF EXISTS tracado;
 DROP TABLE IF EXISTS tipo_acidente;
 DROP TABLE IF EXISTS causa;
+-- Catálogos da versão 1 que viraram coluna com CHECK na versão 2 (parte 1).
+-- O DROP continua aqui para limpar um banco criado pela versão 1.
 DROP TABLE IF EXISTS fase_dia;
 DROP TABLE IF EXISTS condicao_meteorologica;
 DROP TABLE IF EXISTS cidade;
@@ -142,30 +144,12 @@ CREATE TABLE cidade (
 
 -- -----------------------------------------------------------------------------
 -- 3.3 Catálogos (listas de valores grandes ou que podem mudar).
---     Critério do grupo: vira tabela a lista que é grande ou que a PRF pode
---     ampliar (causas, tipos, traçados, tipos de veículo, condição, fase do dia).
---     Listas pequenas e fixas viram coluna com CHECK (sexo, sentido etc.).
+--     Critério do grupo: vira tabela a lista que é grande, tem textos longos ou
+--     que a PRF pode revisar (causas, tipos de acidente, traçados, tipos de
+--     veículo). Listas pequenas, curtas e fixas viram coluna com CHECK (sexo,
+--     sentido, fase do dia, condição meteorológica etc.): o CHECK valida na
+--     própria linha e dispensa um JOIN.
 -- -----------------------------------------------------------------------------
-CREATE TABLE condicao_meteorologica (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta da condição meteorológica',
-    descricao VARCHAR(30)      NOT NULL
-              COMMENT 'Condição do tempo no momento do acidente (ex.: Céu Claro, Chuva, Ignorado)',
-    CONSTRAINT pk_condicao_meteorologica PRIMARY KEY (id),
-    CONSTRAINT uq_condicao_meteorologica_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de condições meteorológicas (10 valores no CSV de 2024)';
-
-CREATE TABLE fase_dia (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta da fase do dia',
-    descricao VARCHAR(20)      NOT NULL
-              COMMENT 'Fase do dia (Amanhecer, Pleno dia, Anoitecer, Plena Noite)',
-    CONSTRAINT pk_fase_dia PRIMARY KEY (id),
-    CONSTRAINT uq_fase_dia_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de fases do dia';
-
 CREATE TABLE causa (
     id        SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT
               COMMENT 'Chave substituta da causa',
@@ -244,12 +228,12 @@ CREATE TABLE acidente (
                         COMMENT 'Latitude em graus decimais (parte do atributo composto coordenadas)',
     longitude           DECIMAL(13,10)    NOT NULL
                         COMMENT 'Longitude em graus decimais (parte do atributo composto coordenadas)',
+    condicao_meteorologica VARCHAR(16)    NOT NULL
+                        COMMENT 'Condição do tempo no momento do acidente (10 valores fixos; ex.: Céu Claro, Chuva, Ignorado)',
+    fase_dia            VARCHAR(11)       NOT NULL
+                        COMMENT 'Fase do dia: Amanhecer, Pleno Dia, Anoitecer ou Plena Noite',
     id_cidade           SMALLINT UNSIGNED NOT NULL
                         COMMENT 'FK: município onde ocorreu o acidente (e, por ele, a UF)',
-    id_condicao         TINYINT UNSIGNED  NOT NULL
-                        COMMENT 'FK: condição meteorológica no momento do acidente',
-    id_fase_dia         TINYINT UNSIGNED  NOT NULL
-                        COMMENT 'FK: fase do dia em que ocorreu o acidente',
     id_uop              SMALLINT UNSIGNED NULL
                         COMMENT 'FK (arco): UOP responsável; preenchida quando a UOP é conhecida',
     id_delegacia        SMALLINT UNSIGNED NULL
@@ -258,8 +242,6 @@ CREATE TABLE acidente (
                         COMMENT 'FK (arco): superintendência responsável, só quando NÃO há UOP nem delegacia',
     CONSTRAINT pk_acidente PRIMARY KEY (id),
     CONSTRAINT fk_acidente_cidade      FOREIGN KEY (id_cidade)   REFERENCES cidade (id),
-    CONSTRAINT fk_acidente_condicao    FOREIGN KEY (id_condicao) REFERENCES condicao_meteorologica (id),
-    CONSTRAINT fk_acidente_fase_dia    FOREIGN KEY (id_fase_dia) REFERENCES fase_dia (id),
     CONSTRAINT fk_acidente_uop         FOREIGN KEY (id_uop)       REFERENCES uop (id),
     CONSTRAINT fk_acidente_delegacia   FOREIGN KEY (id_delegacia) REFERENCES delegacia (id),
     CONSTRAINT fk_acidente_superintendencia
@@ -270,6 +252,12 @@ CREATE TABLE acidente (
     CONSTRAINT ck_acidente_uso_solo   CHECK (uso_solo IN ('Urbano','Rural')),
     CONSTRAINT ck_acidente_classificacao CHECK (classificacao IS NULL OR classificacao IN
                                     ('Sem Vítimas','Com Vítimas Feridas','Com Vítimas Fatais')),
+    -- Versão 2 (parte 1): listas pequenas e fixas que eram catálogo viram CHECK.
+    CONSTRAINT ck_acidente_fase_dia CHECK (fase_dia IN
+                                    ('Amanhecer','Pleno Dia','Anoitecer','Plena Noite')),
+    CONSTRAINT ck_acidente_condicao CHECK (condicao_meteorologica IN
+                                    ('Céu Claro','Chuva','Garoa/Chuvisco','Granizo','Ignorado',
+                                     'Neve','Nevoeiro/Neblina','Nublado','Sol','Vento')),
     -- Faixas válidas:
     CONSTRAINT ck_acidente_data      CHECK (data >= '2007-01-01'),     -- série de dados abertos da PRF começa em 2007
     CONSTRAINT ck_acidente_horario   CHECK (horario BETWEEN '00:00:00' AND '23:59:59'),
@@ -442,7 +430,7 @@ ALTER TABLE causa_acidente
 ALTER TABLE veiculo
     ADD INDEX idx_veiculo_marca (marca);
 
--- Conferência rápida: deve listar as 16 tabelas.
+-- Conferência rápida: deve listar as 14 tabelas.
 SELECT table_name AS tabela, table_comment AS finalidade
   FROM information_schema.tables
  WHERE table_schema = 'usuport' AND table_type = 'BASE TABLE'
@@ -562,7 +550,7 @@ SELECT COUNT(*)           AS linhas_carregadas,
 -- =============================================================================
 --  UNIFACS — Projeto Integrador de Banco de Dados — A3
 --  Time Índice — Grupo 4 | Cenário: USUPORT
---  Arquivo: 03_carga.sql — povoamento (DML) das 16 tabelas a partir da staging
+--  Arquivo: 03_carga.sql — povoamento (DML) das 14 tabelas a partir da staging
 -- -----------------------------------------------------------------------------
 --  Cada tabela é preenchida com INSERT ... SELECT [DISTINCT] sobre a staging,
 --  na ORDEM DAS FKs (quem é referenciado entra antes de quem referencia):
@@ -588,6 +576,8 @@ SELECT COUNT(*)           AS linhas_carregadas,
 --     R10 UOP/delegacia ausentes        → acidente aponta para a unidade mais
 --                                         específica conhecida (arco)
 --     R11 dia_semana e ilesos/feridos/mortos → NÃO carregados (derivados)
+--     R12 fase do dia "Pleno dia"       → "Pleno Dia" (grafia padronizada, como
+--                                         "Plena Noite"; versão 2, parte 1)
 -- =============================================================================
 
 USE usuport;
@@ -640,17 +630,8 @@ SELECT DISTINCT s.municipio, s.uf
  ORDER BY s.uf, s.municipio;
 SELECT 'cidade' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
-INSERT INTO condicao_meteorologica (descricao)
-SELECT DISTINCT s.condicao_metereologica      -- (sic) nome da coluna no CSV
-  FROM stg_acidente_csv s
- ORDER BY 1;
-SELECT 'condicao_meteorologica' AS tabela, ROW_COUNT() AS linhas_inseridas;
-
-INSERT INTO fase_dia (descricao)
-SELECT DISTINCT s.fase_dia
-  FROM stg_acidente_csv s
- ORDER BY 1;
-SELECT 'fase_dia' AS tabela, ROW_COUNT() AS linhas_inseridas;
+-- (Versão 2: condição meteorológica e fase do dia não têm mais catálogo;
+--  o texto vai direto para a coluna de acidente, validado por CHECK.)
 
 INSERT INTO causa (descricao)
 SELECT DISTINCT s.causa_acidente
@@ -689,8 +670,8 @@ SELECT 'tipo_veiculo' AS tabela, ROW_COUNT() AS linhas_inseridas;
 --    do acidente são constantes dentro do mesmo id: conferido no perfilamento).
 -- -----------------------------------------------------------------------------
 INSERT INTO acidente (id, data, horario, br, km, sentido, tipo_pista, uso_solo,
-                      classificacao, latitude, longitude, id_cidade, id_condicao,
-                      id_fase_dia, id_uop, id_delegacia, id_superintendencia)
+                      classificacao, latitude, longitude, condicao_meteorologica,
+                      fase_dia, id_cidade, id_uop, id_delegacia, id_superintendencia)
 SELECT CAST(s.id AS UNSIGNED),
        CAST(s.data_inversa AS DATE),
        CAST(s.horario AS TIME),
@@ -702,7 +683,10 @@ SELECT CAST(s.id AS UNSIGNED),
        NULLIF(s.classificacao_acidente, 'NA'),                        -- R1
        CAST(s.latitude  AS DECIMAL(12,10)),                           -- R3
        CAST(s.longitude AS DECIMAL(13,10)),                           -- R3
-       c.id, cm.id, f.id,
+       s.condicao_metereologica,                     -- (sic) nome da coluna no CSV
+       -- R12: a colação é sem caixa, então 'Pleno dia' casa com o WHEN e sai padronizado
+       CASE s.fase_dia WHEN 'Pleno Dia' THEN 'Pleno Dia' ELSE s.fase_dia END,
+       c.id,
        -- R10: arco "unidade mais específica conhecida"
        u.id                                              AS id_uop,
        CASE WHEN u.id IS NULL THEN d.id END              AS id_delegacia,
@@ -713,9 +697,7 @@ SELECT CAST(s.id AS UNSIGNED),
                         uop, delegacia, regional
           FROM stg_acidente_csv) AS s
   JOIN cidade                 c  ON c.nome = s.municipio AND c.uf = s.uf
-  JOIN condicao_meteorologica cm ON cm.descricao = s.condicao_metereologica
-  JOIN fase_dia               f  ON f.descricao  = s.fase_dia
-  LEFT JOIN uop               u  ON u.sigla  = s.uop         -- 'N/A' não casa → NULL
+  LEFT JOIN uop              u  ON u.sigla  = s.uop         -- 'N/A' não casa → NULL
   LEFT JOIN delegacia         d  ON d.sigla  = s.delegacia
   LEFT JOIN superintendencia  sp ON sp.sigla = s.regional
  ORDER BY 1;
@@ -833,10 +815,10 @@ ANALYZE TABLE acidente, pessoa, veiculo, causa_acidente, acidente_tipo, acidente
 -- -----------------------------------------------------------------------------
 --  Cada verificação devolve: o que foi medido, o valor ESPERADO (vindo do
 --  perfilamento do CSV), o valor OBTIDO no banco e a situação (OK/DIVERGENTE).
---    A. Contagens das 16 tabelas
+--    A. Contagens das 14 tabelas
 --    B. Regras de limpeza: quantos registros cada regra afetou
 --    C. Regras de negócio (violações devem ser 0)
---    D. Remoção da staging (o esquema final fica só com as 16 tabelas)
+--    D. Remoção da staging (o esquema final fica só com as 14 tabelas)
 --  Rode logo após o 03_carga.sql (a seção B lê a staging).
 -- =============================================================================
 
@@ -859,8 +841,11 @@ SELECT t.verificacao, t.esperado, t.obtido,
     UNION ALL SELECT 'A09 delegacias',                  152, (SELECT COUNT(*) FROM delegacia)
     UNION ALL SELECT 'A10 UOPs',                        394, (SELECT COUNT(*) FROM uop)
     UNION ALL SELECT 'A11 cidades (nome, uf)',         1873, (SELECT COUNT(*) FROM cidade)
-    UNION ALL SELECT 'A12 condicoes meteorologicas',     10, (SELECT COUNT(*) FROM condicao_meteorologica)
-    UNION ALL SELECT 'A13 fases do dia',                  4, (SELECT COUNT(*) FROM fase_dia)
+    -- v2: condição e fase do dia viraram coluna com CHECK → conta valores distintos
+    UNION ALL SELECT 'A12 condicoes meteorologicas (distintas)', 10,
+           (SELECT COUNT(DISTINCT condicao_meteorologica) FROM acidente)
+    UNION ALL SELECT 'A13 fases do dia (distintas)',              4,
+           (SELECT COUNT(DISTINCT fase_dia) FROM acidente)
     UNION ALL SELECT 'A14 pares acidente-causa',     111307, (SELECT COUNT(*) FROM causa_acidente)
     UNION ALL SELECT 'A15 pares acidente-ordem-tipo',124173, (SELECT COUNT(*) FROM acidente_tipo)
     UNION ALL SELECT 'A16 pares acidente-tracado',    93850, (SELECT COUNT(*) FROM acidente_tracado)
@@ -938,6 +923,12 @@ SELECT t.verificacao, t.esperado, t.obtido,
            (SELECT SUM(m) FROM (SELECT pesid, MAX(CAST(feridos_graves AS UNSIGNED)) m
                                   FROM stg_acidente_csv WHERE pesid <> 'NA' GROUP BY pesid) x),
            (SELECT COUNT(*) FROM pessoa WHERE estado_fisico = 'Lesões Graves')
+    -- R12: nenhuma fase do dia com a grafia antiga (comparação COM caixa)
+    UNION ALL SELECT 'B-R12 fase do dia com grafia antiga "Pleno dia"', 0,
+           (SELECT COUNT(*) FROM acidente WHERE fase_dia COLLATE utf8mb4_0900_as_cs = 'Pleno dia')
+    UNION ALL SELECT 'B-R12 acidentes de "Pleno Dia" (padronizados)',
+           (SELECT COUNT(DISTINCT id) FROM stg_acidente_csv WHERE fase_dia = 'Pleno dia'),
+           (SELECT COUNT(*) FROM acidente WHERE fase_dia COLLATE utf8mb4_0900_as_cs = 'Pleno Dia')
   ) AS t;
 
 -- -----------------------------------------------------------------------------
@@ -1020,7 +1011,7 @@ SELECT CASE WHEN id_uop IS NOT NULL              THEN '1. UOP'
  ORDER BY unidade_registrada;
 
 -- -----------------------------------------------------------------------------
--- D. Remoção da staging — o esquema final fica com as 16 tabelas do modelo.
+-- D. Remoção da staging — o esquema final fica com as 14 tabelas do modelo.
 --    (comente a linha abaixo se quiser manter a staging para inspeção)
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS stg_acidente_csv;
@@ -1065,13 +1056,12 @@ START TRANSACTION;
 
 INSERT INTO acidente (data, horario, br, km, sentido, tipo_pista, uso_solo,
                       classificacao, latitude, longitude,
-                      id_cidade, id_condicao, id_fase_dia, id_uop)
+                      condicao_meteorologica, fase_dia, id_cidade, id_uop)
 VALUES ('2024-12-20', '18:40:00', 324, 612.5, 'Crescente', 'Dupla', 'Urbano',
         'Com Vítimas Feridas', -12.9301000000, -38.4502000000,
-        (SELECT id FROM cidade                 WHERE nome = 'SALVADOR' AND uf = 'BA'),
-        (SELECT id FROM condicao_meteorologica WHERE descricao = 'Chuva'),
-        (SELECT id FROM fase_dia               WHERE descricao = 'Anoitecer'),
-        (SELECT id FROM uop                    WHERE sigla = 'UOP01-DEL01-BA'));
+        'Chuva', 'Anoitecer',                -- v2: texto validado por CHECK
+        (SELECT id FROM cidade WHERE nome = 'SALVADOR' AND uf = 'BA'),
+        (SELECT id FROM uop    WHERE sigla = 'UOP01-DEL01-BA'));
 
 -- LAST_INSERT_ID() devolve o id gerado pelo AUTO_INCREMENT nesta conexão.
 SET @id_ac1 = LAST_INSERT_ID();
@@ -1119,13 +1109,12 @@ START TRANSACTION;
 
 INSERT INTO acidente (data, horario, br, km, sentido, tipo_pista, uso_solo,
                       classificacao, latitude, longitude,
-                      id_cidade, id_condicao, id_fase_dia, id_uop)
+                      condicao_meteorologica, fase_dia, id_cidade, id_uop)
 VALUES ('2024-12-21', '04:15:00', 116, 425.0, 'Decrescente', 'Simples', 'Rural',
         'Sem Vítimas', -12.3100000000, -38.9500000000,
-        (SELECT id FROM cidade                 WHERE nome = 'FEIRA DE SANTANA' AND uf = 'BA'),
-        (SELECT id FROM condicao_meteorologica WHERE descricao = 'Céu Claro'),
-        (SELECT id FROM fase_dia               WHERE descricao = 'Plena Noite'),
-        (SELECT id FROM uop                    WHERE sigla = 'UOP01-DEL01-BA'));
+        'Céu Claro', 'Plena Noite',
+        (SELECT id FROM cidade WHERE nome = 'FEIRA DE SANTANA' AND uf = 'BA'),
+        (SELECT id FROM uop    WHERE sigla = 'UOP01-DEL01-BA'));
 SET @id_ac2 = LAST_INSERT_ID();
 
 INSERT INTO causa_acidente (id_acidente, id_causa, principal)
@@ -1287,6 +1276,10 @@ SELECT SUM(id <  9000001) AS acidentes_prf,
 --     → ERROR 3819: Check constraint 'ck_acidente_unidade_unica' is violated.
 -- UPDATE acidente SET id_delegacia = 1 WHERE id = @id_ac1;
 
+-- 4.7 Fase do dia fora da lista (v2: era FK, agora é CHECK)
+--     → ERROR 3819: Check constraint 'ck_acidente_fase_dia' is violated.
+-- UPDATE acidente SET fase_dia = 'Madrugada' WHERE id = @id_ac1;
+
 
 -- #############################################################################
 -- ##  06_dql_consultas.sql
@@ -1377,22 +1370,22 @@ SELECT tv.descricao                                          AS tipo_veiculo,
 
 -- @Q04 | Acidentes por fase do dia × condição meteorológica
 -- Objetivo: cruzar luminosidade e tempo para orientar fiscalização e sinalização.
--- Técnicas: CTE, 2 INNER JOIN, LEFT JOIN, GROUP BY com 2 colunas, COUNT, SUM, filtro temporal.
+-- Técnicas: CTE, LEFT JOIN, GROUP BY com 2 colunas, COUNT, SUM, filtro temporal.
+-- v2: fase do dia e condição são colunas com CHECK no próprio acidente,
+--     por isso esta consulta não precisa mais de JOIN com catálogo.
 WITH totais AS (
     SELECT id_acidente, SUM(estado_fisico = 'Óbito') AS mortos
       FROM pessoa GROUP BY id_acidente
 )
-SELECT f.descricao                                            AS fase_dia,
-       cm.descricao                                           AS condicao,
+SELECT a.fase_dia                                             AS fase_dia,
+       a.condicao_meteorologica                               AS condicao,
        COUNT(*)                                               AS acidentes,
        COALESCE(SUM(t.mortos), 0)                             AS obitos,
        ROUND(100 * COALESCE(SUM(t.mortos), 0) / COUNT(*), 2)  AS obitos_por_100_acidentes
   FROM acidente a
- INNER JOIN fase_dia               f  ON f.id  = a.id_fase_dia
- INNER JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
-  LEFT JOIN totais                 t  ON t.id_acidente = a.id
+  LEFT JOIN totais t ON t.id_acidente = a.id
  WHERE a.data BETWEEN @data_ini AND @data_fim
- GROUP BY f.descricao, cm.descricao
+ GROUP BY a.fase_dia, a.condicao_meteorologica
  ORDER BY acidentes DESC;
 
 -- @Q05 | Média de idade por estado físico e sexo
@@ -1609,7 +1602,7 @@ SELECT HOUR(a.horario)                                     AS hora,
  GROUP BY hora
  ORDER BY hora;
 
--- @Q16 | Ficha completa de um acidente (junção de 10 tabelas)
+-- @Q16 | Ficha completa de um acidente (junções + subconsultas)
 -- Objetivo: reconstituir o "registro da planilha" a partir do modelo normalizado.
 -- Técnicas: INNER JOIN e LEFT JOIN em cadeia, GROUP_CONCAT, subconsultas correlacionadas.
 SELECT a.id,
@@ -1619,8 +1612,8 @@ SELECT a.id,
        c.nome                                            AS municipio,
        c.uf,
        a.br, a.km, a.sentido, a.tipo_pista, a.uso_solo,
-       f.descricao                                       AS fase_dia,
-       cm.descricao                                      AS condicao,
+       a.fase_dia,
+       a.condicao_meteorologica                          AS condicao,
        a.classificacao,
        COALESCE(u.sigla, '-')                            AS uop,
        COALESCE(d.sigla, '-')                            AS delegacia,
@@ -1637,8 +1630,6 @@ SELECT a.id,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id) AS pessoas
   FROM acidente a
  INNER JOIN cidade                 c  ON c.id  = a.id_cidade
- INNER JOIN fase_dia               f  ON f.id  = a.id_fase_dia
- INNER JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
   LEFT JOIN uop                    u  ON u.id  = a.id_uop
   LEFT JOIN delegacia              d  ON d.id  = COALESCE(u.id_delegacia, a.id_delegacia)
   LEFT JOIN superintendencia       s  ON s.id  = COALESCE(d.id_superintendencia, a.id_superintendencia)
@@ -1761,8 +1752,8 @@ SELECT a.id,
        a.tipo_pista,
        a.uso_solo,
        a.classificacao,
-       cm.descricao                                                     AS condicao_meteorologica,
-       f.descricao                                                      AS fase_dia,
+       a.condicao_meteorologica,                         -- v2: coluna com CHECK, sem JOIN
+       a.fase_dia,
        a.latitude,
        a.longitude,
        u.sigla                                                          AS uop,
@@ -1788,8 +1779,6 @@ SELECT a.id,
          WHERE p.id_acidente = a.id AND p.estado_fisico = 'Óbito')      AS mortos
   FROM acidente a
   JOIN cidade                 c  ON c.id  = a.id_cidade
-  JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
-  JOIN fase_dia               f  ON f.id  = a.id_fase_dia
   LEFT JOIN uop               u  ON u.id  = a.id_uop
   LEFT JOIN delegacia         d  ON d.id  = COALESCE(u.id_delegacia, a.id_delegacia)
   LEFT JOIN superintendencia  s  ON s.id  = COALESCE(d.id_superintendencia, a.id_superintendencia);

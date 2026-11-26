@@ -154,12 +154,15 @@ SQL_CATALOGOS = {
     "tipo_acidente":          "SELECT id, descricao FROM tipo_acidente ORDER BY descricao",
     "tracado":                "SELECT id, descricao FROM tracado ORDER BY descricao",
     "tipo_veiculo":           "SELECT id, descricao FROM tipo_veiculo ORDER BY descricao",
-    "condicao_meteorologica": "SELECT id, descricao FROM condicao_meteorologica ORDER BY descricao",
-    "fase_dia":               "SELECT id, descricao FROM fase_dia ORDER BY id",
     "superintendencia":       "SELECT id, sigla AS descricao FROM superintendencia ORDER BY sigla",
 }
 
-# Domínios das colunas com CHECK (os mesmos valores do 01_ddl.sql).
+# Domínios das colunas com CHECK — EXATAMENTE os mesmos valores do 01_ddl.sql.
+# Se um valor daqui não estiver no CHECK, o MySQL recusa a gravação (erro 3819).
+# v2 (parte 1): fase do dia e condição meteorológica deixaram de ser catálogo.
+FASES_DIA = ["Amanhecer", "Pleno Dia", "Anoitecer", "Plena Noite"]
+CONDICOES_METEOROLOGICAS = ["Céu Claro", "Chuva", "Garoa/Chuvisco", "Granizo", "Ignorado",
+                            "Neve", "Nevoeiro/Neblina", "Nublado", "Sol", "Vento"]
 UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA",
        "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]
 SENTIDOS = ["Crescente", "Decrescente", "Não Informado"]
@@ -453,7 +456,7 @@ def validar_novo_acidente(dados: dict, causas: list[int], principal: int | None,
 
 SQL_INSERT_ACIDENTE = """
     INSERT INTO acidente (data, horario, br, km, sentido, tipo_pista, uso_solo, classificacao,
-                          latitude, longitude, id_cidade, id_condicao, id_fase_dia,
+                          latitude, longitude, id_cidade, condicao_meteorologica, fase_dia,
                           id_uop, id_delegacia, id_superintendencia)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
@@ -487,7 +490,7 @@ def inserir_acidente(dados: dict, causas: list[int], principal: int, tipos: list
             p_acidente = (dados["data"], dados["horario"], dados.get("br"), dados.get("km"),
                           dados["sentido"], dados["tipo_pista"], dados["uso_solo"],
                           classificacao_calculada(pessoas), dados["latitude"], dados["longitude"],
-                          dados["id_cidade"], dados["id_condicao"], dados["id_fase_dia"],
+                          dados["id_cidade"], dados["condicao_meteorologica"], dados["fase_dia"],
                           dados.get("id_uop"), dados.get("id_delegacia"),
                           dados.get("id_superintendencia"))
             cur.execute(SQL_INSERT_ACIDENTE, p_acidente)

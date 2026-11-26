@@ -74,8 +74,8 @@ SELECT a.id,
        a.tipo_pista,
        a.uso_solo,
        a.classificacao,
-       cm.descricao                                                     AS condicao_meteorologica,
-       f.descricao                                                      AS fase_dia,
+       a.condicao_meteorologica,                         -- v2: coluna com CHECK, sem JOIN
+       a.fase_dia,
        a.latitude,
        a.longitude,
        u.sigla                                                          AS uop,
@@ -101,8 +101,6 @@ SELECT a.id,
          WHERE p.id_acidente = a.id AND p.estado_fisico = 'Óbito')      AS mortos
   FROM acidente a
   JOIN cidade                 c  ON c.id  = a.id_cidade
-  JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
-  JOIN fase_dia               f  ON f.id  = a.id_fase_dia
   LEFT JOIN uop               u  ON u.id  = a.id_uop
   LEFT JOIN delegacia         d  ON d.id  = COALESCE(u.id_delegacia, a.id_delegacia)
   LEFT JOIN superintendencia  s  ON s.id  = COALESCE(d.id_superintendencia, a.id_superintendencia);

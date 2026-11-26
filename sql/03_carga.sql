@@ -1,7 +1,7 @@
 -- =============================================================================
 --  UNIFACS — Projeto Integrador de Banco de Dados — A3
 --  Time Índice — Grupo 4 | Cenário: USUPORT
---  Arquivo: 03_carga.sql — povoamento (DML) das 16 tabelas a partir da staging
+--  Arquivo: 03_carga.sql — povoamento (DML) das 14 tabelas a partir da staging
 -- -----------------------------------------------------------------------------
 --  Cada tabela é preenchida com INSERT ... SELECT [DISTINCT] sobre a staging,
 --  na ORDEM DAS FKs (quem é referenciado entra antes de quem referencia):
@@ -27,6 +27,8 @@
 --     R10 UOP/delegacia ausentes        → acidente aponta para a unidade mais
 --                                         específica conhecida (arco)
 --     R11 dia_semana e ilesos/feridos/mortos → NÃO carregados (derivados)
+--     R12 fase do dia "Pleno dia"       → "Pleno Dia" (grafia padronizada, como
+--                                         "Plena Noite"; versão 2, parte 1)
 -- =============================================================================
 
 USE usuport;
@@ -79,17 +81,8 @@ SELECT DISTINCT s.municipio, s.uf
  ORDER BY s.uf, s.municipio;
 SELECT 'cidade' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
-INSERT INTO condicao_meteorologica (descricao)
-SELECT DISTINCT s.condicao_metereologica      -- (sic) nome da coluna no CSV
-  FROM stg_acidente_csv s
- ORDER BY 1;
-SELECT 'condicao_meteorologica' AS tabela, ROW_COUNT() AS linhas_inseridas;
-
-INSERT INTO fase_dia (descricao)
-SELECT DISTINCT s.fase_dia
-  FROM stg_acidente_csv s
- ORDER BY 1;
-SELECT 'fase_dia' AS tabela, ROW_COUNT() AS linhas_inseridas;
+-- (Versão 2: condição meteorológica e fase do dia não têm mais catálogo;
+--  o texto vai direto para a coluna de acidente, validado por CHECK.)
 
 INSERT INTO causa (descricao)
 SELECT DISTINCT s.causa_acidente
@@ -128,8 +121,8 @@ SELECT 'tipo_veiculo' AS tabela, ROW_COUNT() AS linhas_inseridas;
 --    do acidente são constantes dentro do mesmo id: conferido no perfilamento).
 -- -----------------------------------------------------------------------------
 INSERT INTO acidente (id, data, horario, br, km, sentido, tipo_pista, uso_solo,
-                      classificacao, latitude, longitude, id_cidade, id_condicao,
-                      id_fase_dia, id_uop, id_delegacia, id_superintendencia)
+                      classificacao, latitude, longitude, condicao_meteorologica,
+                      fase_dia, id_cidade, id_uop, id_delegacia, id_superintendencia)
 SELECT CAST(s.id AS UNSIGNED),
        CAST(s.data_inversa AS DATE),
        CAST(s.horario AS TIME),
@@ -141,7 +134,10 @@ SELECT CAST(s.id AS UNSIGNED),
        NULLIF(s.classificacao_acidente, 'NA'),                        -- R1
        CAST(s.latitude  AS DECIMAL(12,10)),                           -- R3
        CAST(s.longitude AS DECIMAL(13,10)),                           -- R3
-       c.id, cm.id, f.id,
+       s.condicao_metereologica,                     -- (sic) nome da coluna no CSV
+       -- R12: a colação é sem caixa, então 'Pleno dia' casa com o WHEN e sai padronizado
+       CASE s.fase_dia WHEN 'Pleno Dia' THEN 'Pleno Dia' ELSE s.fase_dia END,
+       c.id,
        -- R10: arco "unidade mais específica conhecida"
        u.id                                              AS id_uop,
        CASE WHEN u.id IS NULL THEN d.id END              AS id_delegacia,
@@ -152,9 +148,7 @@ SELECT CAST(s.id AS UNSIGNED),
                         uop, delegacia, regional
           FROM stg_acidente_csv) AS s
   JOIN cidade                 c  ON c.nome = s.municipio AND c.uf = s.uf
-  JOIN condicao_meteorologica cm ON cm.descricao = s.condicao_metereologica
-  JOIN fase_dia               f  ON f.descricao  = s.fase_dia
-  LEFT JOIN uop               u  ON u.sigla  = s.uop         -- 'N/A' não casa → NULL
+  LEFT JOIN uop              u  ON u.sigla  = s.uop         -- 'N/A' não casa → NULL
   LEFT JOIN delegacia         d  ON d.sigla  = s.delegacia
   LEFT JOIN superintendencia  sp ON sp.sigla = s.regional
  ORDER BY 1;

@@ -83,22 +83,22 @@ SELECT tv.descricao                                          AS tipo_veiculo,
 
 -- @Q04 | Acidentes por fase do dia × condição meteorológica
 -- Objetivo: cruzar luminosidade e tempo para orientar fiscalização e sinalização.
--- Técnicas: CTE, 2 INNER JOIN, LEFT JOIN, GROUP BY com 2 colunas, COUNT, SUM, filtro temporal.
+-- Técnicas: CTE, LEFT JOIN, GROUP BY com 2 colunas, COUNT, SUM, filtro temporal.
+-- v2: fase do dia e condição são colunas com CHECK no próprio acidente,
+--     por isso esta consulta não precisa mais de JOIN com catálogo.
 WITH totais AS (
     SELECT id_acidente, SUM(estado_fisico = 'Óbito') AS mortos
       FROM pessoa GROUP BY id_acidente
 )
-SELECT f.descricao                                            AS fase_dia,
-       cm.descricao                                           AS condicao,
+SELECT a.fase_dia                                             AS fase_dia,
+       a.condicao_meteorologica                               AS condicao,
        COUNT(*)                                               AS acidentes,
        COALESCE(SUM(t.mortos), 0)                             AS obitos,
        ROUND(100 * COALESCE(SUM(t.mortos), 0) / COUNT(*), 2)  AS obitos_por_100_acidentes
   FROM acidente a
- INNER JOIN fase_dia               f  ON f.id  = a.id_fase_dia
- INNER JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
-  LEFT JOIN totais                 t  ON t.id_acidente = a.id
+  LEFT JOIN totais t ON t.id_acidente = a.id
  WHERE a.data BETWEEN @data_ini AND @data_fim
- GROUP BY f.descricao, cm.descricao
+ GROUP BY a.fase_dia, a.condicao_meteorologica
  ORDER BY acidentes DESC;
 
 -- @Q05 | Média de idade por estado físico e sexo
@@ -315,7 +315,7 @@ SELECT HOUR(a.horario)                                     AS hora,
  GROUP BY hora
  ORDER BY hora;
 
--- @Q16 | Ficha completa de um acidente (junção de 10 tabelas)
+-- @Q16 | Ficha completa de um acidente (junções + subconsultas)
 -- Objetivo: reconstituir o "registro da planilha" a partir do modelo normalizado.
 -- Técnicas: INNER JOIN e LEFT JOIN em cadeia, GROUP_CONCAT, subconsultas correlacionadas.
 SELECT a.id,
@@ -325,8 +325,8 @@ SELECT a.id,
        c.nome                                            AS municipio,
        c.uf,
        a.br, a.km, a.sentido, a.tipo_pista, a.uso_solo,
-       f.descricao                                       AS fase_dia,
-       cm.descricao                                      AS condicao,
+       a.fase_dia,
+       a.condicao_meteorologica                          AS condicao,
        a.classificacao,
        COALESCE(u.sigla, '-')                            AS uop,
        COALESCE(d.sigla, '-')                            AS delegacia,
@@ -343,8 +343,6 @@ SELECT a.id,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id) AS pessoas
   FROM acidente a
  INNER JOIN cidade                 c  ON c.id  = a.id_cidade
- INNER JOIN fase_dia               f  ON f.id  = a.id_fase_dia
- INNER JOIN condicao_meteorologica cm ON cm.id = a.id_condicao
   LEFT JOIN uop                    u  ON u.id  = a.id_uop
   LEFT JOIN delegacia              d  ON d.id  = COALESCE(u.id_delegacia, a.id_delegacia)
   LEFT JOIN superintendencia       s  ON s.id  = COALESCE(d.id_superintendencia, a.id_superintendencia)

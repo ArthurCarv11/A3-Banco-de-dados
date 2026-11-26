@@ -33,13 +33,12 @@ START TRANSACTION;
 
 INSERT INTO acidente (data, horario, br, km, sentido, tipo_pista, uso_solo,
                       classificacao, latitude, longitude,
-                      id_cidade, id_condicao, id_fase_dia, id_uop)
+                      condicao_meteorologica, fase_dia, id_cidade, id_uop)
 VALUES ('2024-12-20', '18:40:00', 324, 612.5, 'Crescente', 'Dupla', 'Urbano',
         'Com Vítimas Feridas', -12.9301000000, -38.4502000000,
-        (SELECT id FROM cidade                 WHERE nome = 'SALVADOR' AND uf = 'BA'),
-        (SELECT id FROM condicao_meteorologica WHERE descricao = 'Chuva'),
-        (SELECT id FROM fase_dia               WHERE descricao = 'Anoitecer'),
-        (SELECT id FROM uop                    WHERE sigla = 'UOP01-DEL01-BA'));
+        'Chuva', 'Anoitecer',                -- v2: texto validado por CHECK
+        (SELECT id FROM cidade WHERE nome = 'SALVADOR' AND uf = 'BA'),
+        (SELECT id FROM uop    WHERE sigla = 'UOP01-DEL01-BA'));
 
 -- LAST_INSERT_ID() devolve o id gerado pelo AUTO_INCREMENT nesta conexão.
 SET @id_ac1 = LAST_INSERT_ID();
@@ -87,13 +86,12 @@ START TRANSACTION;
 
 INSERT INTO acidente (data, horario, br, km, sentido, tipo_pista, uso_solo,
                       classificacao, latitude, longitude,
-                      id_cidade, id_condicao, id_fase_dia, id_uop)
+                      condicao_meteorologica, fase_dia, id_cidade, id_uop)
 VALUES ('2024-12-21', '04:15:00', 116, 425.0, 'Decrescente', 'Simples', 'Rural',
         'Sem Vítimas', -12.3100000000, -38.9500000000,
-        (SELECT id FROM cidade                 WHERE nome = 'FEIRA DE SANTANA' AND uf = 'BA'),
-        (SELECT id FROM condicao_meteorologica WHERE descricao = 'Céu Claro'),
-        (SELECT id FROM fase_dia               WHERE descricao = 'Plena Noite'),
-        (SELECT id FROM uop                    WHERE sigla = 'UOP01-DEL01-BA'));
+        'Céu Claro', 'Plena Noite',
+        (SELECT id FROM cidade WHERE nome = 'FEIRA DE SANTANA' AND uf = 'BA'),
+        (SELECT id FROM uop    WHERE sigla = 'UOP01-DEL01-BA'));
 SET @id_ac2 = LAST_INSERT_ID();
 
 INSERT INTO causa_acidente (id_acidente, id_causa, principal)
@@ -254,3 +252,7 @@ SELECT SUM(id <  9000001) AS acidentes_prf,
 -- 4.6 Unidade da PRF dupla (UOP e delegacia ao mesmo tempo)
 --     → ERROR 3819: Check constraint 'ck_acidente_unidade_unica' is violated.
 -- UPDATE acidente SET id_delegacia = 1 WHERE id = @id_ac1;
+
+-- 4.7 Fase do dia fora da lista (v2: era FK, agora é CHECK)
+--     → ERROR 3819: Check constraint 'ck_acidente_fase_dia' is violated.
+-- UPDATE acidente SET fase_dia = 'Madrugada' WHERE id = @id_ac1;

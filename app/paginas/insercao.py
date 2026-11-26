@@ -76,12 +76,12 @@ longitude = c11.number_input("Longitude", -74.0, -28.0, sugestao[1], format="%.6
                              key=f"lon{k}_{id_cidade}")
 c12.caption("Coordenadas sugeridas: ponto médio dos acidentes já registrados no município.")
 
-condicoes = opcoes(_catalogo("condicao_meteorologica"))
-fases = opcoes(_catalogo("fase_dia"))
+# v2: condição e fase do dia são colunas com CHECK; as opções vêm das listas
+# fixas do db.py (iguais ao CHECK), sem consulta ao banco.
 c13, c14 = st.columns(2)
-id_condicao = c13.selectbox("Condição meteorológica", list(condicoes), format_func=condicoes.get,
-                            key=f"cond{k}")
-id_fase = c14.selectbox("Fase do dia", list(fases), format_func=fases.get, key=f"fase{k}")
+condicao = c13.selectbox("Condição meteorológica", db.CONDICOES_METEOROLOGICAS, key=f"cond{k}")
+fase = c14.selectbox("Fase do dia", db.FASES_DIA, index=db.FASES_DIA.index("Anoitecer"),
+                     key=f"fase{k}")
 
 # Unidade da PRF — o banco guarda só a MAIS ESPECÍFICA escolhida (arco).
 st.markdown("**Unidade da PRF responsável** (o banco grava apenas a mais específica)")
@@ -177,7 +177,7 @@ lista_tipos = [id_por_tipo[t] for t in tipos_df["tipo"].dropna()]
 dados = {"data": data_ac, "horario": hora_ac, "br": br or None, "km": km if br else None,
          "sentido": sentido, "tipo_pista": tipo_pista, "uso_solo": uso_solo,
          "latitude": latitude, "longitude": longitude, "id_cidade": id_cidade,
-         "id_condicao": id_condicao, "id_fase_dia": id_fase,
+         "condicao_meteorologica": condicao, "fase_dia": fase,
          # arco: só a unidade mais específica vai para o banco
          "id_uop": id_uop,
          "id_delegacia": id_del if not id_uop else None,

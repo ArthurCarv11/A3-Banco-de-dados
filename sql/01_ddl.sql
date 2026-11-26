@@ -5,9 +5,9 @@
 -- -----------------------------------------------------------------------------
 --  O que este script faz, em ordem:
 --    1. CREATE DATABASE usuport (utf8mb4, colação sem acento/sem caixa);
---    2. DROP TABLE IF EXISTS das 16 tabelas, na ordem INVERSA das FKs
+--    2. DROP TABLE IF EXISTS das tabelas, na ordem INVERSA das FKs
 --       (primeiro quem referencia, depois quem é referenciado);
---    3. CREATE TABLE das 16 tabelas, na ordem DIRETA das FKs
+--    3. CREATE TABLE das 14 tabelas, na ordem DIRETA das FKs
 --       (primeiro os catálogos e a hierarquia da PRF, depois acidente,
 --        depois as tabelas que dependem de acidente);
 --    4. ALTER TABLE comentados, com restrições que só podem ser criadas
@@ -43,6 +43,8 @@ DROP TABLE IF EXISTS tipo_veiculo;
 DROP TABLE IF EXISTS tracado;
 DROP TABLE IF EXISTS tipo_acidente;
 DROP TABLE IF EXISTS causa;
+-- Catálogos da versão 1 que viraram coluna com CHECK na versão 2 (parte 1).
+-- O DROP continua aqui para limpar um banco criado pela versão 1.
 DROP TABLE IF EXISTS fase_dia;
 DROP TABLE IF EXISTS condicao_meteorologica;
 DROP TABLE IF EXISTS cidade;
@@ -121,30 +123,12 @@ CREATE TABLE cidade (
 
 -- -----------------------------------------------------------------------------
 -- 3.3 Catálogos (listas de valores grandes ou que podem mudar).
---     Critério do grupo: vira tabela a lista que é grande ou que a PRF pode
---     ampliar (causas, tipos, traçados, tipos de veículo, condição, fase do dia).
---     Listas pequenas e fixas viram coluna com CHECK (sexo, sentido etc.).
+--     Critério do grupo: vira tabela a lista que é grande, tem textos longos ou
+--     que a PRF pode revisar (causas, tipos de acidente, traçados, tipos de
+--     veículo). Listas pequenas, curtas e fixas viram coluna com CHECK (sexo,
+--     sentido, fase do dia, condição meteorológica etc.): o CHECK valida na
+--     própria linha e dispensa um JOIN.
 -- -----------------------------------------------------------------------------
-CREATE TABLE condicao_meteorologica (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta da condição meteorológica',
-    descricao VARCHAR(30)      NOT NULL
-              COMMENT 'Condição do tempo no momento do acidente (ex.: Céu Claro, Chuva, Ignorado)',
-    CONSTRAINT pk_condicao_meteorologica PRIMARY KEY (id),
-    CONSTRAINT uq_condicao_meteorologica_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de condições meteorológicas (10 valores no CSV de 2024)';
-
-CREATE TABLE fase_dia (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta da fase do dia',
-    descricao VARCHAR(20)      NOT NULL
-              COMMENT 'Fase do dia (Amanhecer, Pleno dia, Anoitecer, Plena Noite)',
-    CONSTRAINT pk_fase_dia PRIMARY KEY (id),
-    CONSTRAINT uq_fase_dia_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de fases do dia';
-
 CREATE TABLE causa (
     id        SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT
               COMMENT 'Chave substituta da causa',
@@ -223,12 +207,12 @@ CREATE TABLE acidente (
                         COMMENT 'Latitude em graus decimais (parte do atributo composto coordenadas)',
     longitude           DECIMAL(13,10)    NOT NULL
                         COMMENT 'Longitude em graus decimais (parte do atributo composto coordenadas)',
+    condicao_meteorologica VARCHAR(16)    NOT NULL
+                        COMMENT 'Condição do tempo no momento do acidente (10 valores fixos; ex.: Céu Claro, Chuva, Ignorado)',
+    fase_dia            VARCHAR(11)       NOT NULL
+                        COMMENT 'Fase do dia: Amanhecer, Pleno Dia, Anoitecer ou Plena Noite',
     id_cidade           SMALLINT UNSIGNED NOT NULL
                         COMMENT 'FK: município onde ocorreu o acidente (e, por ele, a UF)',
-    id_condicao         TINYINT UNSIGNED  NOT NULL
-                        COMMENT 'FK: condição meteorológica no momento do acidente',
-    id_fase_dia         TINYINT UNSIGNED  NOT NULL
-                        COMMENT 'FK: fase do dia em que ocorreu o acidente',
     id_uop              SMALLINT UNSIGNED NULL
                         COMMENT 'FK (arco): UOP responsável; preenchida quando a UOP é conhecida',
     id_delegacia        SMALLINT UNSIGNED NULL
@@ -237,8 +221,6 @@ CREATE TABLE acidente (
                         COMMENT 'FK (arco): superintendência responsável, só quando NÃO há UOP nem delegacia',
     CONSTRAINT pk_acidente PRIMARY KEY (id),
     CONSTRAINT fk_acidente_cidade      FOREIGN KEY (id_cidade)   REFERENCES cidade (id),
-    CONSTRAINT fk_acidente_condicao    FOREIGN KEY (id_condicao) REFERENCES condicao_meteorologica (id),
-    CONSTRAINT fk_acidente_fase_dia    FOREIGN KEY (id_fase_dia) REFERENCES fase_dia (id),
     CONSTRAINT fk_acidente_uop         FOREIGN KEY (id_uop)       REFERENCES uop (id),
     CONSTRAINT fk_acidente_delegacia   FOREIGN KEY (id_delegacia) REFERENCES delegacia (id),
     CONSTRAINT fk_acidente_superintendencia
@@ -249,6 +231,12 @@ CREATE TABLE acidente (
     CONSTRAINT ck_acidente_uso_solo   CHECK (uso_solo IN ('Urbano','Rural')),
     CONSTRAINT ck_acidente_classificacao CHECK (classificacao IS NULL OR classificacao IN
                                     ('Sem Vítimas','Com Vítimas Feridas','Com Vítimas Fatais')),
+    -- Versão 2 (parte 1): listas pequenas e fixas que eram catálogo viram CHECK.
+    CONSTRAINT ck_acidente_fase_dia CHECK (fase_dia IN
+                                    ('Amanhecer','Pleno Dia','Anoitecer','Plena Noite')),
+    CONSTRAINT ck_acidente_condicao CHECK (condicao_meteorologica IN
+                                    ('Céu Claro','Chuva','Garoa/Chuvisco','Granizo','Ignorado',
+                                     'Neve','Nevoeiro/Neblina','Nublado','Sol','Vento')),
     -- Faixas válidas:
     CONSTRAINT ck_acidente_data      CHECK (data >= '2007-01-01'),     -- série de dados abertos da PRF começa em 2007
     CONSTRAINT ck_acidente_horario   CHECK (horario BETWEEN '00:00:00' AND '23:59:59'),
@@ -421,7 +409,7 @@ ALTER TABLE causa_acidente
 ALTER TABLE veiculo
     ADD INDEX idx_veiculo_marca (marca);
 
--- Conferência rápida: deve listar as 16 tabelas.
+-- Conferência rápida: deve listar as 14 tabelas.
 SELECT table_name AS tabela, table_comment AS finalidade
   FROM information_schema.tables
  WHERE table_schema = 'usuport' AND table_type = 'BASE TABLE'
