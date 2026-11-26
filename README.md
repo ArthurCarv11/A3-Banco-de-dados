@@ -36,7 +36,7 @@ Com os dados assim, perguntas simples, como "quais causas mais matam?" ou "em qu
 
 ![Modelo lógico](docs/der_logico.png)
 
-O dicionário de dados (campos, tipos, restrições e finalidade de cada tabela) está no relatório, `docs/relatorio.pdf`.
+O dicionário de dados completo (campos, tipos, restrições e finalidade de cada tabela) está no relatório técnico, entregue em PDF aos professores. No próprio banco, cada tabela e cada coluna tem um `COMMENT` com a sua finalidade: veja o `sql/01_ddl.sql` ou a aba *Colunas* do DBeaver.
 
 ## Tecnologias e por que foram escolhidas
 
@@ -59,7 +59,7 @@ O dicionário de dados (campos, tipos, restrições e finalidade de cada tabela)
   - a pessoa guarda o acidente e o veículo, com uma FK composta que impede divergência;
   - a classificação do acidente é mantida e conferida contra o estado físico das pessoas.
 
-  O passo a passo está no relatório (`docs/relatorio.pdf`), seção 5.
+  O passo a passo completo está no relatório técnico, seção 5.
 
 ## Testes e validação
 
@@ -90,10 +90,8 @@ O dicionário de dados (campos, tipos, restrições e finalidade de cada tabela)
 │   ├── componentes.py           ← expander "SQL executado", mensagens de erro
 │   └── paginas/                 ← consulta.py · insercao.py · exclusao.py · painel.py
 ├── docs/
-│   ├── relatorio.pdf            ← RELATÓRIO TÉCNICO (entrega)
 │   ├── der_conceitual.png       ← DER conceitual (Chen) em alta resolução
 │   └── der_logico.png           ← modelo lógico (tabelas, PK/FK)
-├── certificados/                ← certificados Oracle Academy
 └── dados/                       ← CSV da PRF compactado (.csv.gz) + README
 ```
 
@@ -101,7 +99,27 @@ O dicionário de dados (campos, tipos, restrições e finalidade de cada tabela)
 
 ### 1. Banco de dados (na VM Ubuntu com MySQL 8)
 
-Configuração da VM, rede, usuários e DBeaver: seção 8 do relatório (`docs/relatorio.pdf`).
+Resumo da VM (o passo a passo completo está na seção 8 do relatório técnico):
+
+1. **VirtualBox** (gratuito) com **Ubuntu Server**. Rede em *Placa em modo Bridge*, ou NAT com redirecionamento da porta 3306.
+2. MySQL 8 e acesso pela rede:
+
+   ```bash
+   sudo apt update && sudo apt install -y mysql-server
+   # em /etc/mysql/mysql.conf.d/mysqld.cnf:  bind-address = 0.0.0.0   e   local_infile = 1
+   sudo systemctl restart mysql
+   ```
+
+3. Usuários (troque as senhas):
+
+   ```sql
+   CREATE USER 'usuport_admin'@'%' IDENTIFIED BY '<senha_admin>';
+   GRANT ALL PRIVILEGES ON usuport.* TO 'usuport_admin'@'%';
+   CREATE USER 'usuport_app'@'%' IDENTIFIED BY '<senha_app>';
+   GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON usuport.* TO 'usuport_app'@'%';
+   ```
+
+   O `usuport_admin` é usado no DBeaver; o `usuport_app`, na aplicação, só com DML e EXECUTE, sem DDL (menor privilégio).
 
 O CSV da PRF está no repositório compactado: `dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz`, com 13 MB (o original tem 222 MB e passa do limite de 100 MB do GitHub). Descompacte e carregue **a partir da raiz do projeto**:
 
