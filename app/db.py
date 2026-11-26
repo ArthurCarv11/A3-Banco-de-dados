@@ -152,7 +152,6 @@ def testar_conexao() -> tuple[bool, str]:
 SQL_CATALOGOS = {
     "causa":                  "SELECT id, descricao FROM causa ORDER BY descricao",
     "tipo_acidente":          "SELECT id, descricao FROM tipo_acidente ORDER BY descricao",
-    "tracado":                "SELECT id, descricao FROM tracado ORDER BY descricao",
     "tipo_veiculo":           "SELECT id, descricao FROM tipo_veiculo ORDER BY descricao",
     "superintendencia":       "SELECT id, sigla AS descricao FROM superintendencia ORDER BY sigla",
 }
@@ -163,6 +162,9 @@ SQL_CATALOGOS = {
 FASES_DIA = ["Amanhecer", "Pleno Dia", "Anoitecer", "Plena Noite"]
 CONDICOES_METEOROLOGICAS = ["Céu Claro", "Chuva", "Garoa/Chuvisco", "Granizo", "Ignorado",
                             "Neve", "Nevoeiro/Neblina", "Nublado", "Sol", "Vento"]
+# v2 (parte 2): o traçado também deixou de ser catálogo.
+TRACADOS = ["Aclive", "Curva", "Declive", "Desvio Temporário", "Em Obras", "Interseção de Vias",
+            "Ponte", "Reta", "Retorno Regulamentado", "Rotatória", "Túnel", "Viaduto"]
 UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA",
        "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]
 SENTIDOS = ["Crescente", "Decrescente", "Não Informado"]
@@ -302,11 +304,10 @@ def ficha_acidente(id_acidente: int, log: list | None = None) -> dict:
         """, p, log)
     tracados = consultar(
         """
-        SELECT tr.descricao AS tracado
+        SELECT x.tracado
           FROM acidente_tracado x
-          JOIN tracado tr ON tr.id = x.id_tracado
          WHERE x.id_acidente = %s
-         ORDER BY tr.descricao
+         ORDER BY x.tracado
         """, p, log)
     veiculos = consultar(
         """
@@ -423,7 +424,7 @@ def classificacao_calculada(pessoas: list[dict]) -> str:
 
 
 def validar_novo_acidente(dados: dict, causas: list[int], principal: int | None,
-                          tipos: list[int], tracados: list[int],
+                          tipos: list[int], tracados: list[str],
                           veiculos: list[dict], pessoas: list[dict]) -> list[str]:
     """Regras de negócio checadas ANTES de abrir a transação (o banco também
     as garante por CHECK/FK/UNIQUE; aqui é para dar mensagens amigáveis)."""
@@ -462,7 +463,7 @@ SQL_INSERT_ACIDENTE = """
 """
 SQL_INSERT_CAUSA = "INSERT INTO causa_acidente (id_acidente, id_causa, principal) VALUES (%s, %s, %s)"
 SQL_INSERT_TIPO = "INSERT INTO acidente_tipo (id_acidente, ordem, id_tipo) VALUES (%s, %s, %s)"
-SQL_INSERT_TRACADO = "INSERT INTO acidente_tracado (id_acidente, id_tracado) VALUES (%s, %s)"
+SQL_INSERT_TRACADO = "INSERT INTO acidente_tracado (id_acidente, tracado) VALUES (%s, %s)"
 SQL_INSERT_VEICULO = """
     INSERT INTO veiculo (id_acidente, id_tipo_veiculo, marca, ano_fabricacao)
     VALUES (%s, %s, %s, %s)
@@ -474,7 +475,7 @@ SQL_INSERT_PESSOA = """
 
 
 def inserir_acidente(dados: dict, causas: list[int], principal: int, tipos: list[int],
-                     tracados: list[int], veiculos: list[dict], pessoas: list[dict],
+                     tracados: list[str], veiculos: list[dict], pessoas: list[dict],
                      log: list | None = None) -> int:
     """Grava o acidente e TODOS os dependentes numa única transação.
     Ordem = ordem das FKs: acidente → causas/tipos/traçados → veículos → pessoas.

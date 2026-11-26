@@ -5,10 +5,10 @@
 -- -----------------------------------------------------------------------------
 --  Cada verificação devolve: o que foi medido, o valor ESPERADO (vindo do
 --  perfilamento do CSV), o valor OBTIDO no banco e a situação (OK/DIVERGENTE).
---    A. Contagens das 14 tabelas
+--    A. Contagens das 13 tabelas
 --    B. Regras de limpeza: quantos registros cada regra afetou
 --    C. Regras de negócio (violações devem ser 0)
---    D. Remoção da staging (o esquema final fica só com as 14 tabelas)
+--    D. Remoção da staging (o esquema final fica só com as 13 tabelas)
 --  Rode logo após o 03_carga.sql (a seção B lê a staging).
 -- =============================================================================
 
@@ -25,7 +25,7 @@ SELECT t.verificacao, t.esperado, t.obtido,
     UNION ALL SELECT 'A03 veiculos',                 139617, (SELECT COUNT(*) FROM veiculo)
     UNION ALL SELECT 'A04 causas (catalogo)',            70, (SELECT COUNT(*) FROM causa)
     UNION ALL SELECT 'A05 tipos de acidente',            17, (SELECT COUNT(*) FROM tipo_acidente)
-    UNION ALL SELECT 'A06 tracados',                     12, (SELECT COUNT(*) FROM tracado)
+    UNION ALL SELECT 'A06 tracados (distintos)',         12, (SELECT COUNT(DISTINCT tracado) FROM acidente_tracado)
     UNION ALL SELECT 'A07 tipos de veiculo',             25, (SELECT COUNT(*) FROM tipo_veiculo)
     UNION ALL SELECT 'A08 superintendencias',            28, (SELECT COUNT(*) FROM superintendencia)
     UNION ALL SELECT 'A09 delegacias',                  152, (SELECT COUNT(*) FROM delegacia)
@@ -201,7 +201,7 @@ SELECT CASE WHEN id_uop IS NOT NULL              THEN '1. UOP'
  ORDER BY unidade_registrada;
 
 -- -----------------------------------------------------------------------------
--- D. Remoção da staging — o esquema final fica com as 14 tabelas do modelo.
+-- D. Remoção da staging — o esquema final fica com as 13 tabelas do modelo.
 --    (comente a linha abaixo se quiser manter a staging para inspeção)
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS stg_acidente_csv;

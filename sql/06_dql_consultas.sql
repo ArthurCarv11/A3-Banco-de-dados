@@ -120,20 +120,20 @@ SELECT p.estado_fisico,
 -- Objetivo: características da via associadas a mortes. Um acidente com
 -- "Reta;Declive" conta nos dois traçados (o atributo é multivalorado).
 -- Técnicas: CTE, INNER JOIN (tabela associativa N:N), LEFT JOIN, GROUP BY, SUM, filtro temporal.
+-- v2: o texto do traçado já está na associativa; não há JOIN com catálogo.
 WITH totais AS (
     SELECT id_acidente, SUM(estado_fisico = 'Óbito') AS mortos
       FROM pessoa GROUP BY id_acidente
 )
-SELECT tr.descricao                                           AS tracado,
+SELECT at2.tracado                                            AS tracado,
        COUNT(*)                                               AS acidentes,
        COALESCE(SUM(t.mortos), 0)                             AS obitos,
        ROUND(100 * COALESCE(SUM(t.mortos), 0) / COUNT(*), 2)  AS obitos_por_100_acidentes
   FROM acidente_tracado at2
- INNER JOIN tracado  tr ON tr.id = at2.id_tracado
  INNER JOIN acidente a  ON a.id  = at2.id_acidente
   LEFT JOIN totais   t  ON t.id_acidente = a.id
  WHERE a.data BETWEEN @data_ini AND @data_fim
- GROUP BY tr.descricao
+ GROUP BY at2.tracado
  ORDER BY obitos DESC;
 
 -- @Q07 | Ranking das superintendências da PRF
@@ -336,8 +336,8 @@ SELECT a.id,
        (SELECT GROUP_CONCAT(ta.descricao ORDER BY at1.ordem SEPARATOR ' > ')
           FROM acidente_tipo at1 JOIN tipo_acidente ta ON ta.id = at1.id_tipo
          WHERE at1.id_acidente = a.id)                   AS sequencia_tipos,
-       (SELECT GROUP_CONCAT(tr.descricao ORDER BY tr.descricao SEPARATOR ', ')
-          FROM acidente_tracado x JOIN tracado tr ON tr.id = x.id_tracado
+       (SELECT GROUP_CONCAT(x.tracado ORDER BY x.tracado SEPARATOR ', ')
+          FROM acidente_tracado x
          WHERE x.id_acidente = a.id)                     AS tracados,
        (SELECT COUNT(*) FROM veiculo v WHERE v.id_acidente = a.id) AS veiculos,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id) AS pessoas

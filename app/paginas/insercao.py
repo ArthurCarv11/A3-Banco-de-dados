@@ -102,7 +102,6 @@ id_uop = u3.selectbox("UOP", [None] + list(uops), disabled=not uops, placeholder
 st.subheader("2. Causas, sequência de tipos e traçado")
 causas = opcoes(_catalogo("causa"))
 tipos = opcoes(_catalogo("tipo_acidente"))
-tracados = opcoes(_catalogo("tracado"))
 id_por_tipo = {v: kk for kk, v in tipos.items()}
 
 a1, a2 = st.columns([3, 2])
@@ -119,8 +118,8 @@ tipos_df = b1.data_editor(
     width="stretch", key=f"tipos{k}",
     column_config={"tipo": st.column_config.SelectboxColumn("Tipo", options=list(tipos.values()),
                                                             required=True)})
-tracados_sel = b2.multiselect("Traçado da via", list(tracados), format_func=tracados.get,
-                              default=[kk for kk, v in tracados.items() if v == "Reta"],
+# v2: traçado é lista fixa (igual ao CHECK de acidente_tracado), sem consulta ao banco
+tracados_sel = b2.multiselect("Traçado da via", db.TRACADOS, default=["Reta"],
                               key=f"trac{k}")
 
 # -----------------------------------------------------------------------------

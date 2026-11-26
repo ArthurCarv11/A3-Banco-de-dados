@@ -7,7 +7,7 @@
 --    1. CREATE DATABASE usuport (utf8mb4, colação sem acento/sem caixa);
 --    2. DROP TABLE IF EXISTS das tabelas, na ordem INVERSA das FKs
 --       (primeiro quem referencia, depois quem é referenciado);
---    3. CREATE TABLE das 14 tabelas, na ordem DIRETA das FKs
+--    3. CREATE TABLE das 13 tabelas, na ordem DIRETA das FKs
 --       (primeiro os catálogos e a hierarquia da PRF, depois acidente,
 --        depois as tabelas que dependem de acidente);
 --    4. ALTER TABLE comentados, com restrições que só podem ser criadas
@@ -40,7 +40,7 @@ DROP TABLE IF EXISTS acidente_tipo;
 DROP TABLE IF EXISTS causa_acidente;
 DROP TABLE IF EXISTS acidente;
 DROP TABLE IF EXISTS tipo_veiculo;
-DROP TABLE IF EXISTS tracado;
+DROP TABLE IF EXISTS tracado;          -- catálogo da v1; virou CHECK na v2 (parte 2)
 DROP TABLE IF EXISTS tipo_acidente;
 DROP TABLE IF EXISTS causa;
 -- Catálogos da versão 1 que viraram coluna com CHECK na versão 2 (parte 1).
@@ -124,9 +124,9 @@ CREATE TABLE cidade (
 -- -----------------------------------------------------------------------------
 -- 3.3 Catálogos (listas de valores grandes ou que podem mudar).
 --     Critério do grupo: vira tabela a lista que é grande, tem textos longos ou
---     que a PRF pode revisar (causas, tipos de acidente, traçados, tipos de
---     veículo). Listas pequenas, curtas e fixas viram coluna com CHECK (sexo,
---     sentido, fase do dia, condição meteorológica etc.): o CHECK valida na
+--     que a PRF pode revisar (causas, tipos de acidente, tipos de veículo).
+--     Listas pequenas, curtas e fixas viram coluna com CHECK (sexo, sentido,
+--     fase do dia, condição meteorológica, traçado etc.): o CHECK valida na
 --     própria linha e dispensa um JOIN.
 -- -----------------------------------------------------------------------------
 CREATE TABLE causa (
@@ -148,16 +148,6 @@ CREATE TABLE tipo_acidente (
     CONSTRAINT uq_tipo_acidente_descricao UNIQUE (descricao)
 ) ENGINE = InnoDB
   COMMENT = 'Catálogo de tipos de acidente (17 valores no CSV de 2024)';
-
-CREATE TABLE tracado (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta do traçado',
-    descricao VARCHAR(30)      NOT NULL
-              COMMENT 'Característica do traçado da via (ex.: Reta, Curva, Declive)',
-    CONSTRAINT pk_tracado PRIMARY KEY (id),
-    CONSTRAINT uq_tracado_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de traçados de via (12 valores, extraídos da célula multivalorada)';
 
 CREATE TABLE tipo_veiculo (
     id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
@@ -296,16 +286,21 @@ CREATE TABLE acidente_tipo (
 -- -----------------------------------------------------------------------------
 -- 3.7 ACIDENTE_TRACADO — resolve o atributo MULTIVALORADO "traçado da via",
 --     que no CSV vinha numa única célula separada por ";" (ex.: "Reta;Declive").
---     A ordem não importa, por isso a PK é (id_acidente, id_tracado).
+--     A ordem não importa, por isso a PK é (id_acidente, tracado).
+--     v2 (parte 2): o catálogo "tracado" (12 valores curtos e fixos) virou
+--     CHECK. A tabela associativa CONTINUA: é ela que resolve o atributo
+--     multivalorado (1FN); só passa a guardar o texto em vez do id.
 -- -----------------------------------------------------------------------------
 CREATE TABLE acidente_tracado (
     id_acidente INT UNSIGNED     NOT NULL
                 COMMENT 'FK: acidente',
-    id_tracado  TINYINT UNSIGNED NOT NULL
-                COMMENT 'FK: característica de traçado presente no local',
-    CONSTRAINT pk_acidente_tracado PRIMARY KEY (id_acidente, id_tracado),
+    tracado     VARCHAR(21)      NOT NULL
+                COMMENT 'Característica de traçado presente no local (12 valores fixos; ex.: Reta, Curva)',
+    CONSTRAINT pk_acidente_tracado PRIMARY KEY (id_acidente, tracado),
     CONSTRAINT fk_acidente_tracado_acidente FOREIGN KEY (id_acidente) REFERENCES acidente (id),
-    CONSTRAINT fk_acidente_tracado_tracado  FOREIGN KEY (id_tracado)  REFERENCES tracado (id)
+    CONSTRAINT ck_acidente_tracado_valor CHECK (tracado IN
+                      ('Aclive','Curva','Declive','Desvio Temporário','Em Obras','Interseção de Vias',
+                       'Ponte','Reta','Retorno Regulamentado','Rotatória','Túnel','Viaduto'))
 ) ENGINE = InnoDB
   COMMENT = 'Associação N:N entre acidente e traçado da via';
 
@@ -409,7 +404,7 @@ ALTER TABLE causa_acidente
 ALTER TABLE veiculo
     ADD INDEX idx_veiculo_marca (marca);
 
--- Conferência rápida: deve listar as 14 tabelas.
+-- Conferência rápida: deve listar as 13 tabelas.
 SELECT table_name AS tabela, table_comment AS finalidade
   FROM information_schema.tables
  WHERE table_schema = 'usuport' AND table_type = 'BASE TABLE'

@@ -12,7 +12,7 @@ Professores: Sergio Spinola e Alexandre Anunciação
 | Alisson Sousa Santos | 12725158318 |
 | Cláudio Roberto Cruz Santiago Santos | 12725151039 |
 
-**Sistema de gestão e análise de sinistros em rodovias federais.** A planilha da PRF de 2024 (603.215 linhas redundantes) vira um banco MySQL 8 normalizado até a 3FN, com **14 tabelas** e **5 views**. O banco roda numa VM do VirtualBox, é inspecionado pelo DBeaver e é manipulado por um app CRUD em Python + Streamlit com SQL puro e parametrizado.
+**Sistema de gestão e análise de sinistros em rodovias federais.** A planilha da PRF de 2024 (603.215 linhas redundantes) vira um banco MySQL 8 normalizado até a 3FN, com **13 tabelas** e **5 views**. O banco roda numa VM do VirtualBox, é inspecionado pelo DBeaver e é manipulado por um app CRUD em Python + Streamlit com SQL puro e parametrizado.
 
 ## O problema
 
@@ -77,9 +77,9 @@ O dicionário de dados completo (campos, tipos, restrições e finalidade de cad
 ├── .env.example                 ← modelo de configuração da conexão (copie para .env)
 ├── sql/
 │   ├── 00_completo.sql          ← pacote ÚNICO (01..07 concatenados)
-│   ├── 01_ddl.sql               ← CREATE DATABASE, DROP/CREATE das 14 tabelas, PK/FK/UNIQUE/CHECK, índices, ALTER TABLE
+│   ├── 01_ddl.sql               ← CREATE DATABASE, DROP/CREATE das 13 tabelas, PK/FK/UNIQUE/CHECK, índices, ALTER TABLE
 │   ├── 02_staging.sql           ← staging + LOAD DATA LOCAL INFILE (latin1)
-│   ├── 03_carga.sql             ← INSERT…SELECT da staging para as 14 tabelas + regras de limpeza R0–R12
+│   ├── 03_carga.sql             ← INSERT…SELECT da staging para as 13 tabelas + regras de limpeza R0–R12
 │   ├── 04_validacao.sql         ← esperado × obtido (contagens, limpeza, regras de negócio) — 0 divergências
 │   ├── 05_dml_exemplos.sql      ← INSERT fictício completo, UPDATEs, DELETE controlado em transação
 │   ├── 06_dql_consultas.sql     ← 18 consultas gerenciais (JOINs, GROUP BY, COUNT, AVG, filtro temporal)
@@ -157,7 +157,7 @@ O app abre em `http://localhost:8501`. A barra lateral mostra a versão do MySQL
 | acidente | 73.156 | causa_acidente | 111.307 |
 | pessoa | 179.114 | acidente_tipo | 124.173 |
 | veiculo | 139.617 | acidente_tracado | 93.850 |
-| cidade | 1.873 | causa / tipo_acidente / tracado / tipo_veiculo | 70 / 17 / 12 / 25 |
-| superintendencia / delegacia / uop | 28 / 152 / 394 | condição meteorológica / fase do dia (colunas com CHECK) | 10 / 4 valores |
+| cidade | 1.873 | causa / tipo_acidente / tipo_veiculo (catálogos) | 70 / 17 / 25 |
+| superintendencia / delegacia / uop | 28 / 152 / 394 | condição meteorológica / fase do dia / traçado (CHECK, sem tabela) | 10 / 4 / 12 valores |
 
 A validação tem 59 verificações (contagens, regras de limpeza e regras de negócio) e terminou com **0 divergências**. Tudo foi testado num MySQL 8.0.46 em Docker antes de ir para a VM.

@@ -90,8 +90,8 @@ SELECT a.id,
        (SELECT GROUP_CONCAT(ta.descricao ORDER BY at1.ordem SEPARATOR ' > ')
           FROM acidente_tipo at1 JOIN tipo_acidente ta ON ta.id = at1.id_tipo
          WHERE at1.id_acidente = a.id)                                  AS tipos,
-       (SELECT GROUP_CONCAT(tr.descricao ORDER BY tr.descricao SEPARATOR '; ')
-          FROM acidente_tracado x JOIN tracado tr ON tr.id = x.id_tracado
+       (SELECT GROUP_CONCAT(x.tracado ORDER BY x.tracado SEPARATOR '; ')
+          FROM acidente_tracado x
          WHERE x.id_acidente = a.id)                                    AS tracados,
        (SELECT COUNT(*) FROM veiculo v WHERE v.id_acidente = a.id)      AS veiculos,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id)      AS pessoas,

@@ -56,8 +56,8 @@ VALUES (@id_ac1, 1, (SELECT id FROM tipo_acidente WHERE descricao = 'Colisão tr
        (@id_ac1, 2, (SELECT id FROM tipo_acidente WHERE descricao = 'Saída de leito carroçável'));
 
 -- Traçado (multivalorado): reta sobre viaduto.
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT @id_ac1, t.id FROM tracado t WHERE t.descricao IN ('Reta', 'Viaduto');
+INSERT INTO acidente_tracado (id_acidente, tracado)          -- v2: texto com CHECK
+VALUES (@id_ac1, 'Reta'), (@id_ac1, 'Viaduto');
 
 -- Veículos: um por INSERT para guardar cada id gerado.
 INSERT INTO veiculo (id_acidente, id_tipo_veiculo, marca, ano_fabricacao)
@@ -100,8 +100,8 @@ SELECT @id_ac2, c.id, TRUE FROM causa c WHERE c.descricao = 'Avarias e/ou desgas
 INSERT INTO acidente_tipo (id_acidente, ordem, id_tipo)
 VALUES (@id_ac2, 1, (SELECT id FROM tipo_acidente WHERE descricao = 'Tombamento'));
 
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT @id_ac2, t.id FROM tracado t WHERE t.descricao = 'Curva';
+INSERT INTO acidente_tracado (id_acidente, tracado)
+VALUES (@id_ac2, 'Curva');
 
 INSERT INTO veiculo (id_acidente, id_tipo_veiculo, marca, ano_fabricacao)
 VALUES (@id_ac2, (SELECT id FROM tipo_veiculo WHERE descricao = 'Caminhão'), 'VOLVO/FH 540 6X4T', 2019);
@@ -256,3 +256,7 @@ SELECT SUM(id <  9000001) AS acidentes_prf,
 -- 4.7 Fase do dia fora da lista (v2: era FK, agora é CHECK)
 --     → ERROR 3819: Check constraint 'ck_acidente_fase_dia' is violated.
 -- UPDATE acidente SET fase_dia = 'Madrugada' WHERE id = @id_ac1;
+
+-- 4.8 Traçado fora da lista (v2: era FK para o catálogo, agora é CHECK)
+--     → ERROR 3819: Check constraint 'ck_acidente_tracado_valor' is violated.
+-- INSERT INTO acidente_tracado (id_acidente, tracado) VALUES (@id_ac1, 'Ladeira');

@@ -28,7 +28,7 @@
 --    1. CREATE DATABASE usuport (utf8mb4, colação sem acento/sem caixa);
 --    2. DROP TABLE IF EXISTS das tabelas, na ordem INVERSA das FKs
 --       (primeiro quem referencia, depois quem é referenciado);
---    3. CREATE TABLE das 14 tabelas, na ordem DIRETA das FKs
+--    3. CREATE TABLE das 13 tabelas, na ordem DIRETA das FKs
 --       (primeiro os catálogos e a hierarquia da PRF, depois acidente,
 --        depois as tabelas que dependem de acidente);
 --    4. ALTER TABLE comentados, com restrições que só podem ser criadas
@@ -61,7 +61,7 @@ DROP TABLE IF EXISTS acidente_tipo;
 DROP TABLE IF EXISTS causa_acidente;
 DROP TABLE IF EXISTS acidente;
 DROP TABLE IF EXISTS tipo_veiculo;
-DROP TABLE IF EXISTS tracado;
+DROP TABLE IF EXISTS tracado;          -- catálogo da v1; virou CHECK na v2 (parte 2)
 DROP TABLE IF EXISTS tipo_acidente;
 DROP TABLE IF EXISTS causa;
 -- Catálogos da versão 1 que viraram coluna com CHECK na versão 2 (parte 1).
@@ -145,9 +145,9 @@ CREATE TABLE cidade (
 -- -----------------------------------------------------------------------------
 -- 3.3 Catálogos (listas de valores grandes ou que podem mudar).
 --     Critério do grupo: vira tabela a lista que é grande, tem textos longos ou
---     que a PRF pode revisar (causas, tipos de acidente, traçados, tipos de
---     veículo). Listas pequenas, curtas e fixas viram coluna com CHECK (sexo,
---     sentido, fase do dia, condição meteorológica etc.): o CHECK valida na
+--     que a PRF pode revisar (causas, tipos de acidente, tipos de veículo).
+--     Listas pequenas, curtas e fixas viram coluna com CHECK (sexo, sentido,
+--     fase do dia, condição meteorológica, traçado etc.): o CHECK valida na
 --     própria linha e dispensa um JOIN.
 -- -----------------------------------------------------------------------------
 CREATE TABLE causa (
@@ -169,16 +169,6 @@ CREATE TABLE tipo_acidente (
     CONSTRAINT uq_tipo_acidente_descricao UNIQUE (descricao)
 ) ENGINE = InnoDB
   COMMENT = 'Catálogo de tipos de acidente (17 valores no CSV de 2024)';
-
-CREATE TABLE tracado (
-    id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
-              COMMENT 'Chave substituta do traçado',
-    descricao VARCHAR(30)      NOT NULL
-              COMMENT 'Característica do traçado da via (ex.: Reta, Curva, Declive)',
-    CONSTRAINT pk_tracado PRIMARY KEY (id),
-    CONSTRAINT uq_tracado_descricao UNIQUE (descricao)
-) ENGINE = InnoDB
-  COMMENT = 'Catálogo de traçados de via (12 valores, extraídos da célula multivalorada)';
 
 CREATE TABLE tipo_veiculo (
     id        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT
@@ -317,16 +307,21 @@ CREATE TABLE acidente_tipo (
 -- -----------------------------------------------------------------------------
 -- 3.7 ACIDENTE_TRACADO — resolve o atributo MULTIVALORADO "traçado da via",
 --     que no CSV vinha numa única célula separada por ";" (ex.: "Reta;Declive").
---     A ordem não importa, por isso a PK é (id_acidente, id_tracado).
+--     A ordem não importa, por isso a PK é (id_acidente, tracado).
+--     v2 (parte 2): o catálogo "tracado" (12 valores curtos e fixos) virou
+--     CHECK. A tabela associativa CONTINUA: é ela que resolve o atributo
+--     multivalorado (1FN); só passa a guardar o texto em vez do id.
 -- -----------------------------------------------------------------------------
 CREATE TABLE acidente_tracado (
     id_acidente INT UNSIGNED     NOT NULL
                 COMMENT 'FK: acidente',
-    id_tracado  TINYINT UNSIGNED NOT NULL
-                COMMENT 'FK: característica de traçado presente no local',
-    CONSTRAINT pk_acidente_tracado PRIMARY KEY (id_acidente, id_tracado),
+    tracado     VARCHAR(21)      NOT NULL
+                COMMENT 'Característica de traçado presente no local (12 valores fixos; ex.: Reta, Curva)',
+    CONSTRAINT pk_acidente_tracado PRIMARY KEY (id_acidente, tracado),
     CONSTRAINT fk_acidente_tracado_acidente FOREIGN KEY (id_acidente) REFERENCES acidente (id),
-    CONSTRAINT fk_acidente_tracado_tracado  FOREIGN KEY (id_tracado)  REFERENCES tracado (id)
+    CONSTRAINT ck_acidente_tracado_valor CHECK (tracado IN
+                      ('Aclive','Curva','Declive','Desvio Temporário','Em Obras','Interseção de Vias',
+                       'Ponte','Reta','Retorno Regulamentado','Rotatória','Túnel','Viaduto'))
 ) ENGINE = InnoDB
   COMMENT = 'Associação N:N entre acidente e traçado da via';
 
@@ -430,7 +425,7 @@ ALTER TABLE causa_acidente
 ALTER TABLE veiculo
     ADD INDEX idx_veiculo_marca (marca);
 
--- Conferência rápida: deve listar as 14 tabelas.
+-- Conferência rápida: deve listar as 13 tabelas.
 SELECT table_name AS tabela, table_comment AS finalidade
   FROM information_schema.tables
  WHERE table_schema = 'usuport' AND table_type = 'BASE TABLE'
@@ -550,7 +545,7 @@ SELECT COUNT(*)           AS linhas_carregadas,
 -- =============================================================================
 --  UNIFACS — Projeto Integrador de Banco de Dados — A3
 --  Time Índice — Grupo 4 | Cenário: USUPORT
---  Arquivo: 03_carga.sql — povoamento (DML) das 14 tabelas a partir da staging
+--  Arquivo: 03_carga.sql — povoamento (DML) das 13 tabelas a partir da staging
 -- -----------------------------------------------------------------------------
 --  Cada tabela é preenchida com INSERT ... SELECT [DISTINCT] sobre a staging,
 --  na ORDEM DAS FKs (quem é referenciado entra antes de quem referencia):
@@ -645,17 +640,7 @@ SELECT DISTINCT s.tipo_acidente
  ORDER BY 1;
 SELECT 'tipo_acidente' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
--- Traçado (R5): a célula "Reta;Declive;Curva" vira um array JSON
--- ["Reta","Declive","Curva"] e o JSON_TABLE devolve uma linha por elemento.
-INSERT INTO tracado (descricao)
-SELECT DISTINCT TRIM(j.valor)
-  FROM (SELECT DISTINCT tracado_via FROM stg_acidente_csv) s
- CROSS JOIN JSON_TABLE(
-           CONCAT('["', REPLACE(s.tracado_via, ';', '","'), '"]'),
-           '$[*]' COLUMNS (valor VARCHAR(30) COLLATE utf8mb4_0900_ai_ci PATH '$')
-       ) AS j
- ORDER BY 1;
-SELECT 'tracado' AS tabela, ROW_COUNT() AS linhas_inseridas;
+-- (Versão 2: o traçado também não tem mais catálogo; ver acidente_tracado.)
 
 INSERT INTO tipo_veiculo (descricao)
 SELECT DISTINCT s.tipo_veiculo
@@ -726,16 +711,18 @@ SELECT DISTINCT CAST(s.id AS UNSIGNED), CAST(s.ordem_tipo_acidente AS UNSIGNED),
  ORDER BY 1, 2;
 SELECT 'acidente_tipo' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
--- Traçado do acidente (R5). O DISTINCT remove valores repetidos dentro da mesma
--- célula (ex.: "Reta;Reta" → um registro).
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT DISTINCT CAST(s.id AS UNSIGNED), t.id
+-- Traçado do acidente (R5): a célula "Reta;Declive;Curva" vira um array JSON
+-- ["Reta","Declive","Curva"] e o JSON_TABLE devolve uma linha por elemento.
+-- O DISTINCT remove valores repetidos dentro da mesma célula ("Reta;Reta").
+-- v2: grava o texto direto; o CHECK ck_acidente_tracado_valor recusa qualquer
+-- valor fora dos 12 conhecidos (a carga para com erro 3819 se a PRF mudar a lista).
+INSERT INTO acidente_tracado (id_acidente, tracado)
+SELECT DISTINCT CAST(s.id AS UNSIGNED), TRIM(j.valor)
   FROM (SELECT DISTINCT id, tracado_via FROM stg_acidente_csv) s
  CROSS JOIN JSON_TABLE(
            CONCAT('["', REPLACE(s.tracado_via, ';', '","'), '"]'),
            '$[*]' COLUMNS (valor VARCHAR(30) COLLATE utf8mb4_0900_ai_ci PATH '$')
        ) AS j
-  JOIN tracado t ON t.descricao = TRIM(j.valor)
  ORDER BY 1, 2;
 SELECT 'acidente_tracado' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
@@ -815,10 +802,10 @@ ANALYZE TABLE acidente, pessoa, veiculo, causa_acidente, acidente_tipo, acidente
 -- -----------------------------------------------------------------------------
 --  Cada verificação devolve: o que foi medido, o valor ESPERADO (vindo do
 --  perfilamento do CSV), o valor OBTIDO no banco e a situação (OK/DIVERGENTE).
---    A. Contagens das 14 tabelas
+--    A. Contagens das 13 tabelas
 --    B. Regras de limpeza: quantos registros cada regra afetou
 --    C. Regras de negócio (violações devem ser 0)
---    D. Remoção da staging (o esquema final fica só com as 14 tabelas)
+--    D. Remoção da staging (o esquema final fica só com as 13 tabelas)
 --  Rode logo após o 03_carga.sql (a seção B lê a staging).
 -- =============================================================================
 
@@ -835,7 +822,7 @@ SELECT t.verificacao, t.esperado, t.obtido,
     UNION ALL SELECT 'A03 veiculos',                 139617, (SELECT COUNT(*) FROM veiculo)
     UNION ALL SELECT 'A04 causas (catalogo)',            70, (SELECT COUNT(*) FROM causa)
     UNION ALL SELECT 'A05 tipos de acidente',            17, (SELECT COUNT(*) FROM tipo_acidente)
-    UNION ALL SELECT 'A06 tracados',                     12, (SELECT COUNT(*) FROM tracado)
+    UNION ALL SELECT 'A06 tracados (distintos)',         12, (SELECT COUNT(DISTINCT tracado) FROM acidente_tracado)
     UNION ALL SELECT 'A07 tipos de veiculo',             25, (SELECT COUNT(*) FROM tipo_veiculo)
     UNION ALL SELECT 'A08 superintendencias',            28, (SELECT COUNT(*) FROM superintendencia)
     UNION ALL SELECT 'A09 delegacias',                  152, (SELECT COUNT(*) FROM delegacia)
@@ -1011,7 +998,7 @@ SELECT CASE WHEN id_uop IS NOT NULL              THEN '1. UOP'
  ORDER BY unidade_registrada;
 
 -- -----------------------------------------------------------------------------
--- D. Remoção da staging — o esquema final fica com as 14 tabelas do modelo.
+-- D. Remoção da staging — o esquema final fica com as 13 tabelas do modelo.
 --    (comente a linha abaixo se quiser manter a staging para inspeção)
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS stg_acidente_csv;
@@ -1079,8 +1066,8 @@ VALUES (@id_ac1, 1, (SELECT id FROM tipo_acidente WHERE descricao = 'Colisão tr
        (@id_ac1, 2, (SELECT id FROM tipo_acidente WHERE descricao = 'Saída de leito carroçável'));
 
 -- Traçado (multivalorado): reta sobre viaduto.
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT @id_ac1, t.id FROM tracado t WHERE t.descricao IN ('Reta', 'Viaduto');
+INSERT INTO acidente_tracado (id_acidente, tracado)          -- v2: texto com CHECK
+VALUES (@id_ac1, 'Reta'), (@id_ac1, 'Viaduto');
 
 -- Veículos: um por INSERT para guardar cada id gerado.
 INSERT INTO veiculo (id_acidente, id_tipo_veiculo, marca, ano_fabricacao)
@@ -1123,8 +1110,8 @@ SELECT @id_ac2, c.id, TRUE FROM causa c WHERE c.descricao = 'Avarias e/ou desgas
 INSERT INTO acidente_tipo (id_acidente, ordem, id_tipo)
 VALUES (@id_ac2, 1, (SELECT id FROM tipo_acidente WHERE descricao = 'Tombamento'));
 
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT @id_ac2, t.id FROM tracado t WHERE t.descricao = 'Curva';
+INSERT INTO acidente_tracado (id_acidente, tracado)
+VALUES (@id_ac2, 'Curva');
 
 INSERT INTO veiculo (id_acidente, id_tipo_veiculo, marca, ano_fabricacao)
 VALUES (@id_ac2, (SELECT id FROM tipo_veiculo WHERE descricao = 'Caminhão'), 'VOLVO/FH 540 6X4T', 2019);
@@ -1280,6 +1267,10 @@ SELECT SUM(id <  9000001) AS acidentes_prf,
 --     → ERROR 3819: Check constraint 'ck_acidente_fase_dia' is violated.
 -- UPDATE acidente SET fase_dia = 'Madrugada' WHERE id = @id_ac1;
 
+-- 4.8 Traçado fora da lista (v2: era FK para o catálogo, agora é CHECK)
+--     → ERROR 3819: Check constraint 'ck_acidente_tracado_valor' is violated.
+-- INSERT INTO acidente_tracado (id_acidente, tracado) VALUES (@id_ac1, 'Ladeira');
+
 
 -- #############################################################################
 -- ##  06_dql_consultas.sql
@@ -1407,20 +1398,20 @@ SELECT p.estado_fisico,
 -- Objetivo: características da via associadas a mortes. Um acidente com
 -- "Reta;Declive" conta nos dois traçados (o atributo é multivalorado).
 -- Técnicas: CTE, INNER JOIN (tabela associativa N:N), LEFT JOIN, GROUP BY, SUM, filtro temporal.
+-- v2: o texto do traçado já está na associativa; não há JOIN com catálogo.
 WITH totais AS (
     SELECT id_acidente, SUM(estado_fisico = 'Óbito') AS mortos
       FROM pessoa GROUP BY id_acidente
 )
-SELECT tr.descricao                                           AS tracado,
+SELECT at2.tracado                                            AS tracado,
        COUNT(*)                                               AS acidentes,
        COALESCE(SUM(t.mortos), 0)                             AS obitos,
        ROUND(100 * COALESCE(SUM(t.mortos), 0) / COUNT(*), 2)  AS obitos_por_100_acidentes
   FROM acidente_tracado at2
- INNER JOIN tracado  tr ON tr.id = at2.id_tracado
  INNER JOIN acidente a  ON a.id  = at2.id_acidente
   LEFT JOIN totais   t  ON t.id_acidente = a.id
  WHERE a.data BETWEEN @data_ini AND @data_fim
- GROUP BY tr.descricao
+ GROUP BY at2.tracado
  ORDER BY obitos DESC;
 
 -- @Q07 | Ranking das superintendências da PRF
@@ -1623,8 +1614,8 @@ SELECT a.id,
        (SELECT GROUP_CONCAT(ta.descricao ORDER BY at1.ordem SEPARATOR ' > ')
           FROM acidente_tipo at1 JOIN tipo_acidente ta ON ta.id = at1.id_tipo
          WHERE at1.id_acidente = a.id)                   AS sequencia_tipos,
-       (SELECT GROUP_CONCAT(tr.descricao ORDER BY tr.descricao SEPARATOR ', ')
-          FROM acidente_tracado x JOIN tracado tr ON tr.id = x.id_tracado
+       (SELECT GROUP_CONCAT(x.tracado ORDER BY x.tracado SEPARATOR ', ')
+          FROM acidente_tracado x
          WHERE x.id_acidente = a.id)                     AS tracados,
        (SELECT COUNT(*) FROM veiculo v WHERE v.id_acidente = a.id) AS veiculos,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id) AS pessoas
@@ -1768,8 +1759,8 @@ SELECT a.id,
        (SELECT GROUP_CONCAT(ta.descricao ORDER BY at1.ordem SEPARATOR ' > ')
           FROM acidente_tipo at1 JOIN tipo_acidente ta ON ta.id = at1.id_tipo
          WHERE at1.id_acidente = a.id)                                  AS tipos,
-       (SELECT GROUP_CONCAT(tr.descricao ORDER BY tr.descricao SEPARATOR '; ')
-          FROM acidente_tracado x JOIN tracado tr ON tr.id = x.id_tracado
+       (SELECT GROUP_CONCAT(x.tracado ORDER BY x.tracado SEPARATOR '; ')
+          FROM acidente_tracado x
          WHERE x.id_acidente = a.id)                                    AS tracados,
        (SELECT COUNT(*) FROM veiculo v WHERE v.id_acidente = a.id)      AS veiculos,
        (SELECT COUNT(*) FROM pessoa  p WHERE p.id_acidente = a.id)      AS pessoas,

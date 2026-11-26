@@ -1,7 +1,7 @@
 -- =============================================================================
 --  UNIFACS — Projeto Integrador de Banco de Dados — A3
 --  Time Índice — Grupo 4 | Cenário: USUPORT
---  Arquivo: 03_carga.sql — povoamento (DML) das 14 tabelas a partir da staging
+--  Arquivo: 03_carga.sql — povoamento (DML) das 13 tabelas a partir da staging
 -- -----------------------------------------------------------------------------
 --  Cada tabela é preenchida com INSERT ... SELECT [DISTINCT] sobre a staging,
 --  na ORDEM DAS FKs (quem é referenciado entra antes de quem referencia):
@@ -96,17 +96,7 @@ SELECT DISTINCT s.tipo_acidente
  ORDER BY 1;
 SELECT 'tipo_acidente' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
--- Traçado (R5): a célula "Reta;Declive;Curva" vira um array JSON
--- ["Reta","Declive","Curva"] e o JSON_TABLE devolve uma linha por elemento.
-INSERT INTO tracado (descricao)
-SELECT DISTINCT TRIM(j.valor)
-  FROM (SELECT DISTINCT tracado_via FROM stg_acidente_csv) s
- CROSS JOIN JSON_TABLE(
-           CONCAT('["', REPLACE(s.tracado_via, ';', '","'), '"]'),
-           '$[*]' COLUMNS (valor VARCHAR(30) COLLATE utf8mb4_0900_ai_ci PATH '$')
-       ) AS j
- ORDER BY 1;
-SELECT 'tracado' AS tabela, ROW_COUNT() AS linhas_inseridas;
+-- (Versão 2: o traçado também não tem mais catálogo; ver acidente_tracado.)
 
 INSERT INTO tipo_veiculo (descricao)
 SELECT DISTINCT s.tipo_veiculo
@@ -177,16 +167,18 @@ SELECT DISTINCT CAST(s.id AS UNSIGNED), CAST(s.ordem_tipo_acidente AS UNSIGNED),
  ORDER BY 1, 2;
 SELECT 'acidente_tipo' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
--- Traçado do acidente (R5). O DISTINCT remove valores repetidos dentro da mesma
--- célula (ex.: "Reta;Reta" → um registro).
-INSERT INTO acidente_tracado (id_acidente, id_tracado)
-SELECT DISTINCT CAST(s.id AS UNSIGNED), t.id
+-- Traçado do acidente (R5): a célula "Reta;Declive;Curva" vira um array JSON
+-- ["Reta","Declive","Curva"] e o JSON_TABLE devolve uma linha por elemento.
+-- O DISTINCT remove valores repetidos dentro da mesma célula ("Reta;Reta").
+-- v2: grava o texto direto; o CHECK ck_acidente_tracado_valor recusa qualquer
+-- valor fora dos 12 conhecidos (a carga para com erro 3819 se a PRF mudar a lista).
+INSERT INTO acidente_tracado (id_acidente, tracado)
+SELECT DISTINCT CAST(s.id AS UNSIGNED), TRIM(j.valor)
   FROM (SELECT DISTINCT id, tracado_via FROM stg_acidente_csv) s
  CROSS JOIN JSON_TABLE(
            CONCAT('["', REPLACE(s.tracado_via, ';', '","'), '"]'),
            '$[*]' COLUMNS (valor VARCHAR(30) COLLATE utf8mb4_0900_ai_ci PATH '$')
        ) AS j
-  JOIN tracado t ON t.descricao = TRIM(j.valor)
  ORDER BY 1, 2;
 SELECT 'acidente_tracado' AS tabela, ROW_COUNT() AS linhas_inseridas;
 
