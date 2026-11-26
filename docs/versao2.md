@@ -1,6 +1,6 @@
 # Versão 2 — evolução do modelo em 5 partes
 
-> Time Índice — Grupo 4 · Cenário USUPORT. Documento de projeto da versão 2. A base (Arthur) prepara o terreno, e cada integrante entrega **uma parte** num commit próprio.
+> Time Índice — Grupo 4 · Cenário USUPORT. Documento de projeto da versão 2. O trabalho foi dividido por **tema técnico**: a base (Arthur) prepara o terreno, e cada integrante ficou responsável por uma parte, da implementação à explicação na banca.
 
 ## 1. Objetivo
 

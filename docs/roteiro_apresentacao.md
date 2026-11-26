@@ -42,7 +42,7 @@ Os tempos somam **~19 min**, o que deixa uma folga de 1 min dentro do limite de 
 **Fala:**
 
 - Entidades: **acidente, pessoa, veículo** e a hierarquia **UOP → delegacia → superintendência**.
-- **Atributos multivalorados** (elipse dupla): causas, tipos em sequência e traçado da via. **Compostos**: local (BR, km, sentido, município, UF) e coordenadas. **Derivados** (tracejados): dia da semana e totais de vítimas. Os derivados **não** são guardados.
+- **Atributos multivalorados** (caixa de borda dupla): causas, tipos em sequência e traçado da via. **Compostos**: local (BR, km, sentido, município, UF) e coordenadas. **Derivados** (tracejados): dia da semana e totais de vítimas. Os derivados **não** são guardados.
 - As regras saíram dos dados. Quatro exemplos:
   - todo acidente tem **exatamente uma causa principal** (73.156 de 73.156);
   - o **mesmo tipo pode se repetir** em ordens diferentes (1.509 acidentes);

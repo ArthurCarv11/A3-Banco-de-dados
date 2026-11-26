@@ -6,8 +6,8 @@ empacotar_entrega.py — gera entrega/A3_TimeIndice_Grupo4_USUPORT.zip com o
 que o edital pede (relatório PDF, scripts SQL, código da aplicação, pasta de
 certificados) e o necessário para reproduzir.
 
-Ficam de fora: .env (senha), o CSV de 222 MB (dados/README.md explica onde
-colocá-lo), caches do Python e arquivos locais de ferramentas.
+Ficam de fora: .env (senha), o CSV descompactado de 222 MB (vai o .csv.gz de
+13 MB), caches do Python e arquivos locais de ferramentas.
 
 Uso, da raiz do projeto:
     python scripts/empacotar_entrega.py
@@ -19,7 +19,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 NOME = "A3_TimeIndice_Grupo4_USUPORT"
 INCLUIR = ["README.md", "requirements.txt", ".env.example", ".gitignore",
-           "sql", "app", "scripts", "docs", "certificados", "dados/README.md"]
+           "sql", "app", "scripts", "docs", "certificados", "dados/README.md",
+           "dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz"]   # CSV compactado (13 MB)
 EXCLUIR_NOMES = {"__pycache__", ".env", "relatorio.html"}
 EXCLUIR_SUFIXOS = {".pyc", ".csv"}
 

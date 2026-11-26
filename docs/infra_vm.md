@@ -110,7 +110,13 @@ scp -r "A3 banco de dados" usuario@192.168.0.50:~/usuport
 
 Opção 2: pasta compartilhada do VirtualBox (exige os Guest Additions) ou pendrive.
 
-Confira se o CSV está em `~/usuport/dados/acidentes2024_todas_causas_tipos_Usuport.csv`.
+Opção 3, mais simples: `git clone` do repositório dentro da VM. O CSV vem compactado; descompacte na raiz do projeto:
+
+```bash
+gunzip -k dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz
+```
+
+Confira se o CSV está em `~/usuport/dados/acidentes2024_todas_causas_tipos_Usuport.csv` (ou na pasta em que você clonou).
 
 ## 5. Criar e carregar o banco (dentro da VM)
 

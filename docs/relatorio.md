@@ -13,7 +13,7 @@
 | Filipe Albuquerque Oliveira | 12725146899 |
 | Guilherme Cabral Teixeira | 12725188306 |
 | Arthur Cordeiro de Carvalho Cruz | 12725113247 |
-| Miguel Lima Quadros Gomes | 1272514349 [CONFERIR] |
+| Miguel Lima Quadros Gomes | 1272514349 |
 | Alisson Sousa Santos | 12725158318 |
 | Cláudio Roberto Cruz Santiago Santos | 12725151039 |
 
@@ -87,8 +87,8 @@ O DER conceitual, em notação de Chen, representa o **negócio**, e não as tab
   - *ocupa*: veículo 0..1:N pessoa;
   - *atende*: unidade da PRF 0..1:N acidente, em **arco exclusivo**;
   - *subordina*: delegacia 1:N UOP e superintendência 1:N delegacia.
-- **Atributos-chave** (sublinhados): id, pesid, id_veiculo e sigla.
-- **Atributos multivalorados** (elipse dupla): **causas** (com o indicador *principal?*), **tipos** (sequência com *ordem*) e **traçado da via**.
+- **Atributos** (caixas arredondadas; os atributos-chave aparecem sublinhados): id, pesid, id_veiculo e sigla.
+- **Atributos multivalorados** (caixa de borda dupla): **causas** (com o indicador *principal?*), **tipos** (sequência com *ordem*) e **traçado da via**.
 - **Atributos compostos:** **local** (BR, km, sentido, município, UF) e **coordenadas** (latitude, longitude).
 - **Atributos derivados** (tracejados, não armazenados): **dia da semana** e **totais de vítimas**.
 - **Cardinalidades:** junto a cada linha, com o mínimo e o máximo observados no CSV. A linha dupla indica participação total.
@@ -407,7 +407,7 @@ As regras são validadas antes de gravar, e a classificação é **calculada** p
 # 10. Instruções de execução e reprodução
 
 1. **VM:** crie a VM Ubuntu no VirtualBox, instale o MySQL 8, ajuste a rede, o `bind-address` e o `local_infile` e crie os usuários (`docs/infra_vm.md`, seções 1 a 3).
-2. **Projeto e CSV:** copie a pasta do projeto para a VM e coloque o CSV em `dados/acidentes2024_todas_causas_tipos_Usuport.csv`.
+2. **Projeto e CSV:** clone o repositório na VM (ou copie a pasta) e descompacte o CSV, que está no repositório como `.csv.gz`: `gunzip -k dados/acidentes2024_todas_causas_tipos_Usuport.csv.gz`.
 3. **Banco:** na raiz do projeto, dentro da VM:
    `sudo mysql --local-infile=1 --default-character-set=utf8mb4 < sql/00_completo.sql`
    (cerca de 40 s; todas as linhas da validação devem sair `OK`).
