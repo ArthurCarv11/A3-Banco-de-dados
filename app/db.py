@@ -634,12 +634,12 @@ def carregar_consultas_dql(caminho: Path = ARQUIVO_DQL) -> list[dict]:
 
 
 def executar_dql(sql: str, data_ini: date, data_fim: date, id_acidente: int = 571778,
-                 log: list | None = None) -> pd.DataFrame:
+                 log: list | None = None, estado: str = "Não Informado") -> pd.DataFrame:
     """Define as variáveis de sessão usadas no arquivo 06 (@data_ini,
-    @data_fim, @id_acidente) — de forma parametrizada — e executa a consulta
-    na MESMA conexão (variáveis de sessão só valem dentro dela)."""
-    sql_set = "SET @data_ini = %s, @data_fim = %s, @id_acidente = %s"
-    params = (data_ini, data_fim, id_acidente)
+    @data_fim, @id_acidente, @estado) — de forma parametrizada — e executa a
+    consulta na MESMA conexão (variáveis de sessão só valem dentro dela)."""
+    sql_set = "SET @data_ini = %s, @data_fim = %s, @id_acidente = %s, @estado = %s"
+    params = (data_ini, data_fim, id_acidente, estado)
     with conexao() as cn:
         cur = cn.cursor()
         cur.execute(sql_set, params)

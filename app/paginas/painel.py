@@ -35,6 +35,7 @@ GRAFICOS = {
     "Q14": ("barra_ordem", "faixa_etaria", "total_obitos"),
     "Q15": ("linha", "hora", "acidentes"),
     "Q17": ("barra", "municipio", "acidentes"),
+    "Q19": ("barra", "superintendencia", "pct_estado_nao_informado"),
 }
 
 
@@ -118,13 +119,17 @@ codigo = c2.selectbox("Consulta", list(rotulos), index=1, format_func=rotulos.ge
 id_acidente = 571778
 if codigo == "Q16":
     id_acidente = st.number_input("@id_acidente", min_value=1, value=571778, step=1)
+estado = "Não Informado"
+if codigo == "Q20":
+    estado = st.selectbox("@estado (estado físico procurado)", db.ESTADOS_FISICOS,
+                          index=db.ESTADOS_FISICOS.index("Não Informado"))
 
 q = next(x for x in consultas if x["codigo"] == codigo)
 st.subheader(rotulos[codigo])
 st.caption(q["descricao"].replace("\n", "  \n"))
 
 try:
-    df = db.executar_dql(q["sql"], data_ini, data_fim, int(id_acidente), log)
+    df = db.executar_dql(q["sql"], data_ini, data_fim, int(id_acidente), log, estado)
     if codigo == "Q04":   # tabela cruzada fica mais legível pivotada
         g = grafico(codigo, df)
         if g is not None:

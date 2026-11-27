@@ -11,6 +11,7 @@
 --  app, eles são definidos pela tela antes de cada consulta:
 --     @data_ini, @data_fim → filtro temporal (intervalo de datas)
 --     @id_acidente         → acidente usado na Q16 (ficha completa)
+--     @estado              → estado físico procurado na Q20 (v2, parte 3)
 --
 --  Como contamos vítimas sem duplicar: um JOIN de acidente com pessoa E com
 --  causa multiplica as linhas (pessoa × causa). Por isso as vítimas são
@@ -23,6 +24,7 @@ USE usuport;
 SET @data_ini    = '2024-01-01';
 SET @data_fim    = '2024-12-31';
 SET @id_acidente = 571778;
+SET @estado      = 'Não Informado';   -- Ileso, Lesões Leves, Lesões Graves, Óbito ou Não Informado
 SET lc_time_names = 'pt_BR';      -- DAYNAME/MONTHNAME em português
 
 -- @Q01 | Acidentes e óbitos por UF e mês
@@ -383,3 +385,48 @@ SELECT c.uf                    AS uf_do_acidente,
    AND RIGHT(s.sigla, 2) <> c.uf
  GROUP BY c.uf, s.sigla
  ORDER BY acidentes DESC;
+
+-- @Q19 | Qualidade do registro: dados não informados por superintendência
+-- Objetivo: onde a PRF mais deixa de registrar o estado físico, o sexo e a
+-- idade das pessoas — o que limita as análises de vítimas daquela região.
+-- Técnicas: INNER JOIN, cadeia de LEFT JOIN com COALESCE (arco), GROUP BY,
+-- COUNT, SUM e AVG condicionais (AVG de uma comparação = percentual), filtro temporal.
+SELECT COALESCE(s.sigla, '(sem unidade)')                         AS superintendencia,
+       COUNT(*)                                                   AS pessoas,
+       SUM(p.estado_fisico = 'Não Informado')                     AS estado_nao_informado,
+       ROUND(100 * AVG(p.estado_fisico = 'Não Informado'), 1)     AS pct_estado_nao_informado,
+       SUM(p.sexo IN ('Não Informado', 'Ignorado'))               AS sexo_nao_informado,
+       SUM(p.idade IS NULL)                                       AS idade_ausente,
+       ROUND(100 * AVG(p.idade IS NULL), 1)                       AS pct_idade_ausente
+  FROM pessoa p
+ INNER JOIN acidente         a ON a.id = p.id_acidente
+  LEFT JOIN uop              u ON u.id = a.id_uop
+  LEFT JOIN delegacia        d ON d.id = COALESCE(u.id_delegacia, a.id_delegacia)
+  LEFT JOIN superintendencia s ON s.id = COALESCE(d.id_superintendencia, a.id_superintendencia)
+ WHERE a.data BETWEEN @data_ini AND @data_fim
+ GROUP BY superintendencia
+ ORDER BY pct_estado_nao_informado DESC;
+
+-- @Q20 | Busca de acidentes pelo estado físico das vítimas (@estado)
+-- Objetivo: localizar os acidentes com mais pessoas num estado físico —
+-- ilesos, feridos, óbitos ou "Não Informado" — no período.
+-- Técnicas: tabela derivada com GROUP BY + HAVING (lê só o índice de cobertura
+-- idx_pessoa_acidente_estado), INNER JOIN, filtro temporal, ORDER BY + LIMIT.
+SELECT a.id,
+       a.data,
+       c.uf,
+       c.nome                    AS municipio,
+       a.classificacao,
+       x.no_estado               AS pessoas_no_estado,
+       x.pessoas                 AS pessoas_no_acidente
+  FROM (SELECT id_acidente,
+               SUM(estado_fisico = @estado) AS no_estado,
+               COUNT(*)                     AS pessoas
+          FROM pessoa
+         GROUP BY id_acidente
+        HAVING no_estado > 0) x
+ INNER JOIN acidente a ON a.id = x.id_acidente
+ INNER JOIN cidade   c ON c.id = a.id_cidade
+ WHERE a.data BETWEEN @data_ini AND @data_fim
+ ORDER BY x.no_estado DESC, a.data DESC
+ LIMIT 50;

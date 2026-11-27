@@ -404,6 +404,20 @@ ALTER TABLE causa_acidente
 ALTER TABLE veiculo
     ADD INDEX idx_veiculo_marca (marca);
 
+-- ALTER 4 — Índice de COBERTURA para as contagens por acidente (v2, parte 3).
+--   Quase todas as consultas gerenciais somam vítimas por acidente:
+--       SELECT id_acidente, SUM(estado_fisico = 'Óbito') ... GROUP BY id_acidente
+--   Antes, o MySQL percorria o índice da FK (só id_acidente) e, para CADA uma
+--   das 179 mil pessoas, buscava estado_fisico na tabela (leitura extra).
+--   Com (id_acidente, estado_fisico), as duas colunas estão no próprio índice
+--   (EXPLAIN mostra "Extra: Using index"): nenhuma leitura extra.
+--   Efeito colateral esperado: o MySQL APAGA SOZINHO o índice implícito da FK
+--   fk_pessoa_acidente, porque este índice novo também serve à FK (começa por
+--   id_acidente). Não há índice duplicado; mas este índice passa a ser
+--   obrigatório: tentar removê-lo dá erro 1553 (needed in a foreign key).
+ALTER TABLE pessoa
+    ADD INDEX idx_pessoa_acidente_estado (id_acidente, estado_fisico);
+
 -- Conferência rápida: deve listar as 13 tabelas.
 SELECT table_name AS tabela, table_comment AS finalidade
   FROM information_schema.tables
